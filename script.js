@@ -17,14 +17,13 @@
     
         let candidatePool = menus.filter(menu =>
             !lastGeneratedMenus.some(lastMenu =>
-                // sort()が元の配列を変更しないようにコピーを作成して比較
                 JSON.stringify([...lastMenu.dishes].sort()) === JSON.stringify([...menu.dishes].sort())
             )
         );
     
         if (candidatePool.length < 7) {
             showMessage("新しい献立が足りないため、全ての献立から選び直します。", false);
-            candidatePool = [...menus]; // 参照ではなくコピーを使用
+            candidatePool = [...menus];
             lastGeneratedMenus = [];
         }
     
@@ -46,43 +45,56 @@
             const previousMenu = i > 0 ? newWeeklyPlan[i - 1] : null;
             const prevPrevMenu = i > 1 ? newWeeklyPlan[i - 2] : null;
     
-            // 予期せず候補が尽きた場合の安全装置
             if (availableMenus.length === 0) {
-                showMessage("エラー: 献立候補がなくなりました。処理を中断します。");
-                return; // 生成を中断
+                showMessage("エラー: 献立候補が尽きました。ユニークな献立が足りない可能性があります。");
+                console.error("Ran out of available menus to generate a full week.");
+                return;
             }
     
             let pool = [...availableMenus];
-            const originalPool = [...pool]; // フィルタリング前のプールを保持
-    
+            let filteredPool;
+
+            // Rule 1: Mazegohan count limit
             if (mazegohanCount >= 2) {
-                const filteredPool = pool.filter(m => !isMazegohanMenu(m));
-                if (filteredPool.length > 0) pool = filteredPool;
+                filteredPool = pool.filter(m => !isMazegohanMenu(m));
+                if (filteredPool.length > 0) {
+                    pool = filteredPool;
+                }
             }
     
+            // Rule 2: Special menu continuation OR category balancing
             if (previousMenu && isSpecialMenu(previousMenu)) {
-                const specialPool = pool.filter(isSpecialMenu);
-                if (specialPool.length > 0) pool = specialPool;
+                filteredPool = pool.filter(isSpecialMenu);
+                if (filteredPool.length > 0) {
+                    pool = filteredPool;
+                }
             } else if (previousMenu && prevPrevMenu) {
                 const prevCategory = getCategory(previousMenu);
                 const prevPrevCategory = getCategory(prevPrevMenu);
                 if (prevCategory !== 'other' && prevCategory === prevPrevCategory) {
-                    const differentCategoryPool = pool.filter(m => getCategory(m) !== prevCategory);
-                    if (differentCategoryPool.length > 0) pool = differentCategoryPool;
+                    filteredPool = pool.filter(m => getCategory(m) !== prevCategory);
+                    if (filteredPool.length > 0) {
+                        pool = filteredPool;
+                    }
                 }
             }
     
-            // フィルターをかけた結果、候補が0になった場合はフィルター前の状態に戻す
-            if (pool.length === 0) {
-                pool = originalPool;
+            // Select a menu from the final pool of candidates
+            const selectedMenu = pool[Math.floor(Math.random() * pool.length)];
+
+            if (!selectedMenu) {
+                showMessage("予期せぬエラーで献立の選択に失敗しました。");
+                console.error("selectedMenu is undefined. This should not happen.", { availableMenus, pool });
+                return;
             }
     
-            let selectedMenu = pool[Math.floor(Math.random() * pool.length)];
             newWeeklyPlan.push(selectedMenu);
     
-            if (isMazegohanMenu(selectedMenu)) mazegohanCount++;
+            if (isMazegohanMenu(selectedMenu)) {
+                mazegohanCount++;
+            }
     
-            // sort()の副作用を避けて、選択された献立を候補から削除
+            // Remove the selected menu from the main available list for the next iteration
             const indexInAvailable = availableMenus.findIndex(m =>
                 JSON.stringify([...m.dishes].sort()) === JSON.stringify([...selectedMenu.dishes].sort())
             );
@@ -90,7 +102,7 @@
             if (indexInAvailable > -1) {
                 availableMenus.splice(indexInAvailable, 1);
             } else {
-                console.warn("選択された献立を候補リストから見つけられませんでした。");
+                console.warn("Could not find the selected menu in the available list to remove it.");
             }
         }
     
