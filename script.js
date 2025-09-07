@@ -148,10 +148,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleTabClick = (e) => {
         const tab = e.target.closest('.tab-button');
         if (!tab) return;
+
+        // Update active state for tabs
         elements.tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
+
+        // Update active state for tab contents
         elements.tabContents.forEach(c => c.classList.remove('active'));
-        getElem(`tab-content-${tab.dataset.tab}`).classList.add('active');
+        const activeContent = getElem(`tab-content-${tab.dataset.tab}`);
+        if (activeContent) {
+            activeContent.classList.add('active');
+        }
     };
 
     const handleAddMenu = () => {
@@ -179,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = e.target.closest('button');
         if (!button) return;
         const id = Number(button.dataset.id);
+        if (!id) return; // Ignore clicks on buttons without a data-id
 
         if (button.classList.contains('delete-button')) {
             menus = menus.filter(menu => menu.id !== id);
@@ -375,8 +383,16 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.cancelEditButton.addEventListener('click', closeEditModal);
 
     // Tag Selection
-    elements.tagsContainer.addEventListener('click', e => e.target.classList.toggle('active'));
-    elements.editTagsContainer.addEventListener('click', e => e.target.classList.toggle('active'));
+    elements.tagsContainer.addEventListener('click', e => {
+        if (e.target.classList.contains('tag-select-button')) {
+            e.target.classList.toggle('active');
+        }
+    });
+    elements.editTagsContainer.addEventListener('click', e => {
+        if (e.target.classList.contains('tag-select-button')) {
+            e.target.classList.toggle('active');
+        }
+    });
     
     // Data Management
     elements.exportButton.addEventListener('click', handleExport);
@@ -390,7 +406,22 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMenuList();
         renderWeekPlan();
         renderShoppingList();
-        elements.tabs[0].click();
+        
+        // Ensure the first tab and its content are active on load
+        elements.tabs.forEach((tab, index) => {
+            if (index === 0) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+        elements.tabContents.forEach((content, index) => {
+            if (index === 0) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
     };
 
     initializeApp();
