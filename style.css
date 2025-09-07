@@ -111,8 +111,8 @@ body {
 
 /* Tab Styles */
 .tab-button {
-    padding: 0.75rem 1rem; /* 横の余白を少し調整 */
-    font-size: 0.875rem; /* フォントサイズを小さくしました */
+    padding: 0.75rem 0.8rem; /* 横の余白をさらに調整 */
+    font-size: 0.8rem; /* フォントサイズをさらに小さくしました */
     font-weight: 600;
     color: #64748b; /* slate-500 */
     border-bottom: 3px solid transparent;
@@ -145,5 +145,6 @@ body {
     color: #fff;
     border-color: #4f46e5;
 }
+
 
 
