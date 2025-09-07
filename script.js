@@ -35,7 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedMenus = localStorage.getItem('menus');
         if (savedMenus) {
             try {
-                menus = JSON.parse(savedMenus);
+                const parsed = JSON.parse(savedMenus);
+                if (Array.isArray(parsed)) {
+                    menus = parsed;
+                }
             } catch (e) {
                 console.error("Error parsing menus from localStorage:", e);
                 menus = []; // Reset on error
@@ -51,7 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedPlan = localStorage.getItem('weeklyPlan');
         if (savedPlan) {
             try {
-                weeklyPlanData = JSON.parse(savedPlan);
+                const parsed = JSON.parse(savedPlan);
+                if (Array.isArray(parsed)) {
+                    weeklyPlanData = parsed;
+                }
             } catch (e) {
                 console.error("Error parsing weekly plan from localStorage:", e);
                 weeklyPlanData = [];
@@ -67,7 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedLast = localStorage.getItem('lastGeneratedMenus');
         if (savedLast) {
             try {
-                lastGeneratedMenus = JSON.parse(savedLast);
+                 const parsed = JSON.parse(savedLast);
+                 if(Array.isArray(parsed)) {
+                    lastGeneratedMenus = parsed;
+                 }
             } catch (e) {
                 console.error("Error parsing last generated menus from localStorage:", e);
                 lastGeneratedMenus = [];
@@ -79,40 +88,46 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('lastGeneratedMenus', JSON.stringify(lastGeneratedMenus));
     };
 
-    // --- Rendering ---
+    // --- Rendering (with added safety checks) ---
     const renderMenuList = (searchTerm = '') => {
         menuList.innerHTML = '';
         const filteredMenus = menus.filter(menu => {
+            if (!menu || !Array.isArray(menu.dishes) || !Array.isArray(menu.tags)) return false;
             const searchLower = searchTerm.toLowerCase();
             const nameMatch = menu.dishes.some(dish => dish.toLowerCase().includes(searchLower));
             const tagMatch = menu.tags.some(tag => tag.toLowerCase().includes(searchLower));
             return nameMatch || tagMatch;
         });
 
-        if (filteredMenus.length === 0) {
-            menuList.innerHTML = `<p class="text-slate-500 text-center col-span-full">登録された献立はありません。</p>`;
+        if (filteredMenus.length === 0 && searchTerm === '') {
+            menuList.innerHTML = `<p class="text-slate-500 text-center col-span-full">献立を登録してください。</p>`;
+            return;
+        }
+        if (filteredMenus.length === 0 && searchTerm !== '') {
+            menuList.innerHTML = `<p class="text-slate-500 text-center col-span-full">検索結果がありません。</p>`;
             return;
         }
 
-        filteredMenus.forEach((menu, index) => {
+        filteredMenus.forEach((menu) => {
             const originalIndex = menus.findIndex(m => m.id === menu.id);
+            if (originalIndex === -1) return;
+
             const card = document.createElement('div');
             card.className = 'bg-white p-5 rounded-lg shadow-md border border-slate-200 flex flex-col justify-between';
+            const tagsHTML = menu.tags.map(tag => `<span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${tag}</span>`).join('');
+            const dishesHTML = menu.dishes.map(dish => `<li>${dish}</li>`).join('');
+            const urlHTML = menu.url ? `<a href="${menu.url}" target="_blank" class="text-sky-600 hover:underline break-all text-sm mb-3 block">レシピを見る</a>` : '';
+
             card.innerHTML = `
                 <div>
-                    <div class="flex flex-wrap gap-2 mb-3">
-                        ${menu.tags.map(tag => `<span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${tag}</span>`).join('')}
-                    </div>
-                    <ul class="list-disc list-inside text-slate-700 mb-3">
-                        ${menu.dishes.map(dish => `<li>${dish}</li>`).join('')}
-                    </ul>
-                    ${menu.url ? `<a href="${menu.url}" target="_blank" class="text-sky-600 hover:underline break-all text-sm mb-3 block">レシピを見る</a>` : ''}
+                    <div class="flex flex-wrap gap-2 mb-3">${tagsHTML}</div>
+                    <ul class="list-disc list-inside text-slate-700 mb-3">${dishesHTML}</ul>
+                    ${urlHTML}
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
                     <button data-index="${originalIndex}" class="edit-button bg-slate-200 text-slate-800 px-4 py-1 rounded-md text-sm font-semibold hover:bg-slate-300">編集</button>
                     <button data-index="${originalIndex}" class="delete-button bg-red-500 text-white px-4 py-1 rounded-md text-sm font-semibold hover:bg-red-600">削除</button>
-                </div>
-            `;
+                </div>`;
             menuList.appendChild(card);
         });
     };
@@ -120,26 +135,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderWeekPlan = () => {
         weekPlan.innerHTML = '';
         const days = ['月', '火', '水', '木', '金', '土', '日'];
-        if (weeklyPlanData.length === 0) {
+        if (!weeklyPlanData || weeklyPlanData.length === 0) {
              weekPlan.innerHTML = `<p class="text-slate-500 text-center col-span-full">「献立を決める」ボタンを押してください。</p>`;
             return;
         }
         weeklyPlanData.forEach((menu, index) => {
+            if (!menu || !Array.isArray(menu.dishes) || !Array.isArray(menu.tags)) {
+                console.error(`Skipping invalid menu item in weekly plan at index ${index}:`, menu);
+                return; 
+            }
             const card = document.createElement('div');
             card.className = 'bg-white p-5 rounded-lg shadow-md border border-slate-200';
+            const tagsHTML = menu.tags.map(tag => `<span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${tag}</span>`).join('');
+            const dishesHTML = menu.dishes.map(dish => `<li>${dish}</li>`).join('');
+            const urlHTML = menu.url ? `<a href="${menu.url}" target="_blank" class="text-sky-600 hover:underline break-all text-sm mt-3 block">レシピを見る</a>` : '';
             card.innerHTML = `
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-xl font-bold text-indigo-700">${days[index]}曜日</h3>
                     <button data-day-index="${index}" class="edit-week-button bg-slate-200 text-slate-800 px-3 py-1 rounded-md text-sm font-semibold hover:bg-slate-300">編集</button>
                 </div>
-                <div class="flex flex-wrap gap-2 mb-3">
-                    ${menu.tags.map(tag => `<span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${tag}</span>`).join('')}
-                </div>
-                <ul class="list-disc list-inside text-slate-700">
-                    ${menu.dishes.map(dish => `<li>${dish}</li>`).join('')}
-                </ul>
-                ${menu.url ? `<a href="${menu.url}" target="_blank" class="text-sky-600 hover:underline break-all text-sm mt-3 block">レシピを見る</a>` : ''}
-            `;
+                <div class="flex flex-wrap gap-2 mb-3">${tagsHTML}</div>
+                <ul class="list-disc list-inside text-slate-700">${dishesHTML}</ul>
+                ${urlHTML}`;
             weekPlan.appendChild(card);
         });
     };
@@ -150,7 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             tabContents.forEach(content => content.classList.remove('active'));
-            document.getElementById(`tab-content-${tab.dataset.tab}`).classList.add('active');
+            const activeContent = document.getElementById(`tab-content-${tab.dataset.tab}`);
+            if (activeContent) {
+                activeContent.classList.add('active');
+            }
         });
     });
 
@@ -209,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
         let candidatePool = menus.filter(menu =>
             !lastGeneratedMenus.some(lastMenu =>
-                JSON.stringify([...lastMenu.dishes].sort()) === JSON.stringify([...menu.dishes].sort())
+                JSON.stringify([...(lastMenu.dishes || [])].sort()) === JSON.stringify([...(menu.dishes || [])].sort())
             )
         );
     
@@ -223,10 +243,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let availableMenus = [...candidatePool];
         let mazegohanCount = 0;
     
-        const isSpecialMenu = menu => menu && menu.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
-        const isMazegohanMenu = menu => menu && menu.dishes.some(d => d.includes('混ぜご飯'));
+        const isSpecialMenu = menu => menu && Array.isArray(menu.dishes) && menu.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
+        const isMazegohanMenu = menu => menu && Array.isArray(menu.dishes) && menu.dishes.some(d => d.includes('混ぜご飯'));
         const getCategory = (menu) => {
-            if (!menu || !menu.tags) return 'other';
+            if (!menu || !Array.isArray(menu.tags)) return 'other';
             if (menu.tags.includes('和食') || menu.tags.includes('和風')) return 'japanese';
             if (menu.tags.includes('中華')) return 'chinese';
             if (menu.tags.includes('洋食') || menu.tags.includes('洋風')) return 'western';
@@ -239,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
             if (availableMenus.length === 0) {
                 showMessage("エラー: 献立候補が尽きました。ユニークな献立が足りない可能性があります。");
-                console.error("Ran out of available menus to generate a full week.");
                 return;
             }
     
@@ -267,7 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!selectedMenu) {
                 showMessage("予期せぬエラーで献立の選択に失敗しました。");
-                console.error("selectedMenu is undefined.", { availableMenus, pool });
                 return;
             }
     
@@ -275,9 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
             if (isMazegohanMenu(selectedMenu)) mazegohanCount++;
     
-            const indexInAvailable = availableMenus.findIndex(m =>
-                JSON.stringify([...m.dishes].sort()) === JSON.stringify([...selectedMenu.dishes].sort())
-            );
+            const indexInAvailable = availableMenus.findIndex(m => m.id === selectedMenu.id);
     
             if (indexInAvailable > -1) {
                 availableMenus.splice(indexInAvailable, 1);
@@ -292,20 +308,20 @@ document.addEventListener('DOMContentLoaded', () => {
         saveLastGenerated();
     
         renderWeekPlan();
-        // generateShoppingList(); // This function does not exist
     });
 
     copyWeekPlanButton.addEventListener('click', () => {
-        if (weeklyPlanData.length < 7) {
+        if (!weeklyPlanData || weeklyPlanData.length < 7) {
             showMessage("献立が作成されていません。");
             return;
         }
         const days = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'];
         const textToCopy = weeklyPlanData.map((menu, index) => {
+            if (!menu) return `${days[index]}\n(献立データエラー)`;
             const day = days[index];
-            const dishes = menu.dishes.map(d => `・${d}`).join('\n');
+            const dishes = (menu.dishes || []).map(d => `・${d}`).join('\n');
             const url = menu.url ? `URL：${menu.url}` : '';
-            return `${day}\n${dishes}\n${url}`;
+            return `${day}\n${dishes}\n${url}`.trim();
         }).join('\n\n');
 
         navigator.clipboard.writeText(textToCopy).then(() => {
@@ -319,12 +335,15 @@ document.addEventListener('DOMContentLoaded', () => {
     weekPlan.addEventListener('click', (e) => {
         const button = e.target.closest('.edit-week-button');
         if (button) {
-            const menu = weeklyPlanData[button.dataset.dayIndex];
-            const originalIndex = menus.findIndex(m => m.id === menu.id);
-            if (originalIndex !== -1) {
-                openEditModal(originalIndex);
-            } else {
-                showMessage("元の献立が見つかりませんでした。");
+            const dayIndex = parseInt(button.dataset.dayIndex, 10);
+            const menu = weeklyPlanData[dayIndex];
+            if (menu && menu.id) {
+                const originalIndex = menus.findIndex(m => m.id === menu.id);
+                if (originalIndex !== -1) {
+                    openEditModal(originalIndex);
+                } else {
+                    showMessage("元の献立が見つかりませんでした。");
+                }
             }
         }
     });
@@ -333,12 +352,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function openEditModal(index) {
         editingIndex = index;
         const menu = menus[index];
-        editMenuForm.dishes.value = menu.dishes.join('\n');
-        editMenuForm.ingredients.value = menu.ingredients.join('\n');
-        editMenuForm.url.value = menu.url;
+        if (!menu) return;
+
+        editMenuForm.dishes.value = (menu.dishes || []).join('\n');
+        editMenuForm.ingredients.value = (menu.ingredients || []).join('\n');
+        editMenuForm.url.value = menu.url || '';
 
         editTagButtons.forEach(button => {
-            if (menu.tags.includes(button.textContent)) {
+            if ((menu.tags || []).includes(button.textContent)) {
                 button.classList.add('active');
             } else {
                 button.classList.remove('active');
@@ -360,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editMenuForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (editingIndex === null) return;
+        if (editingIndex === null || !menus[editingIndex]) return;
 
         const updatedMenu = {
             id: menus[editingIndex].id,
@@ -373,6 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
         menus[editingIndex] = updatedMenu;
         saveMenus();
         renderMenuList(searchInput.value);
+        renderWeekPlan(); // 更新が週間献立に表示されている場合に備えて再描画
         editModal.classList.add('hidden');
         showMessage("献立を更新しました。", false);
     });
@@ -382,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeSettingsButton.addEventListener('click', () => settingsModal.classList.add('hidden'));
 
     exportButton.addEventListener('click', () => {
-        const dataStr = JSON.stringify({ menus });
+        const dataStr = JSON.stringify({ menus, weeklyPlanData, lastGeneratedMenus });
         const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
         const exportFileDefaultName = 'menu_app_backup.json';
         const linkElement = document.createElement('a');
@@ -401,8 +423,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = JSON.parse(e.target.result);
                 if (data && Array.isArray(data.menus)) {
                     menus = data.menus;
+                    weeklyPlanData = data.weeklyPlanData || [];
+                    lastGeneratedMenus = data.lastGeneratedMenus || [];
                     saveMenus();
+                    saveWeeklyPlan();
+                    saveLastGenerated();
                     renderMenuList();
+                    renderWeekPlan();
                     showMessage("データをインポートしました。", false);
                 } else {
                     showMessage("無効なファイル形式です。");
@@ -421,24 +448,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Utility ---
     function showMessage(msg, isError = true) {
         messageBox.textContent = msg;
-        messageBox.className = 'message-box'; // Reset classes
-        if (isError) {
-            messageBox.classList.add('error');
-        } else {
-            messageBox.classList.add('success');
-        }
-        messageBox.classList.add('show');
-        setTimeout(() => {
-            messageBox.classList.remove('show');
-        }, 3000);
+        messageBox.className = 'message-box';
+        messageBox.classList.add(isError ? 'error' : 'success', 'show');
+        setTimeout(() => messageBox.classList.remove('show'), 3000);
     }
 
     // --- Initial Load ---
-    loadMenus();
-    loadWeeklyPlan();
-    loadLastGenerated();
-    renderMenuList();
-    renderWeekPlan();
-    document.querySelector('.tab-button[data-tab="week"]').click();
+    function initializeApp() {
+        loadMenus();
+        loadWeeklyPlan();
+        loadLastGenerated();
+        renderMenuList();
+        renderWeekPlan();
+        const initialTab = document.querySelector('.tab-button[data-tab="week"]');
+        if (initialTab) {
+            initialTab.click();
+        }
+    }
+
+    initializeApp();
 });
 
