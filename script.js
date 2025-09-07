@@ -1,16 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // DOM要素の取得
-    const menuInput = document.getElementById('menu-input');
-    const ingredientsInput = document.getElementById('ingredients-input');
-    const tagsContainer = document.getElementById('tags-container');
-    const urlInput = document.getElementById('url-input');
-    const addButton = document.getElementById('add-button');
-    const menuList = document.getElementById('menu-list');
-    const searchInput = document.getElementById('search-input');
+// ... existing code ... -->
     const generateButton = document.getElementById('generate-button');
+    const copyWeekPlanButton = document.getElementById('copy-week-plan-button'); // New
     const weekPlan = document.getElementById('week-plan');
     const messageBox = document.getElementById('message-box');
-    const filterTagsInput = document.getElementById('filter-tags-input');
     const shoppingListContainer = document.getElementById('shopping-list-container');
     const shoppingList = document.getElementById('shopping-list');
     
@@ -178,19 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', () => renderMenuList(searchInput.value));
 
     generateButton.addEventListener('click', () => {
-        const filterTags = filterTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
-        
-        let filteredMenus = menus;
-        if (filterTags.length > 0) {
-            filteredMenus = menus.filter(menu => filterTags.every(filterTag => menu.tags.includes(filterTag)));
-        }
-
-        if (filteredMenus.length < 7) {
-            showMessage(`日替わり献立には7種類以上の献立が必要です。(現在: ${filteredMenus.length}種類)`);
+        if (menus.length < 7) {
+            showMessage(`日替わり献立には7種類以上の献立が必要です。(現在: ${menus.length}種類)`);
             return;
         }
         
-        let candidatePool = filteredMenus.filter(menu => 
+        let candidatePool = menus.filter(menu => 
             !lastGeneratedMenus.some(lastMenu => 
                 JSON.stringify(lastMenu.dishes.sort()) === JSON.stringify(menu.dishes.sort())
             )
@@ -198,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (candidatePool.length < 7) {
             showMessage("新しい献立が足りないため、全ての献立から選び直します。", false);
-            candidatePool = filteredMenus;
+            candidatePool = menus;
             lastGeneratedMenus = [];
         }
 
@@ -265,6 +250,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderWeekPlan();
         generateShoppingList();
+    });
+
+    // New: Copy Button Listener
+    copyWeekPlanButton.addEventListener('click', () => {
+        if (!weeklyPlanData || weeklyPlanData.length < 7) {
+            showMessage('コピーする献立がありません。');
+            return;
+        }
+
+        const days = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'];
+        let textToCopy = '';
+
+        weeklyPlanData.forEach((menu, index) => {
+            textToCopy += `${days[index]}\n`;
+            menu.dishes.forEach(dish => {
+                textToCopy += `・${dish}\n`;
+            });
+            if (menu.url) {
+                textToCopy += `URL：${menu.url}\n`;
+            }
+            if (index < 6) { // Add a blank line between days, but not after the last day
+                textToCopy += '\n';
+            }
+        });
+
+        // Create a temporary textarea to copy the text
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px'; // Move it off-screen
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if(successful) {
+                showMessage('献立をクリップボードにコピーしました。', false);
+            } else {
+                showMessage('コピーに失敗しました。');
+            }
+        } catch (err) {
+            showMessage('コピーに失敗しました。');
+        }
+
+        document.body.removeChild(textArea);
     });
     
     weekPlan.addEventListener('click', (e) => {
@@ -428,4 +458,5 @@ document.addEventListener('DOMContentLoaded', () => {
         renderInitialWeekPlan();
     }
 });
+
 
