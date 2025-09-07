@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM要素の取得
     const menuInput = document.getElementById('menu-input');
     const ingredientsInput = document.getElementById('ingredients-input');
-    const tagsInput = document.getElementById('tags-input');
+    const tagsContainer = document.getElementById('tags-container');
     const urlInput = document.getElementById('url-input');
     const addButton = document.getElementById('add-button');
     const menuList = document.getElementById('menu-list');
@@ -12,26 +12,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterTagsInput = document.getElementById('filter-tags-input');
     const shoppingListContainer = document.getElementById('shopping-list-container');
     const shoppingList = document.getElementById('shopping-list');
-    const exportButton = document.getElementById('export-button');
-    const importButton = document.getElementById('import-button');
-    const importFile = document.getElementById('import-file');
     
-    // Edit Modal Elements
+    // Edit Modal
     const editModal = document.getElementById('edit-modal');
     const editIndexInput = document.getElementById('edit-index');
     const editMenuInput = document.getElementById('edit-menu-input');
     const editIngredientsInput = document.getElementById('edit-ingredients-input');
-    const editTagsInput = document.getElementById('edit-tags-input');
+    const editTagsContainer = document.getElementById('edit-tags-container');
     const editUrlInput = document.getElementById('edit-url-input');
     const saveEditButton = document.getElementById('save-edit-button');
     const cancelEditButton = document.getElementById('cancel-edit-button');
 
+    // Settings Modal
+    const settingsButton = document.getElementById('settings-button');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettingsButton = document.getElementById('close-settings-button');
+    const exportButton = document.getElementById('export-button');
+    const importButton = document.getElementById('import-button');
+    const importFile = document.getElementById('import-file');
+    
+    // Tabs
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
 
     // データ構造: [{dishes: [], ingredients: [], tags: [], url: ""}, ...]
     let menus = JSON.parse(localStorage.getItem('menus')) || [];
     let weeklyPlanData = [];
     let lastGeneratedMenus = [];
-    let availableSwaps = []; // 入れ替え可能な献立プール
+    let availableSwaps = [];
 
     // --- データ処理関数 ---
     const saveMenus = () => localStorage.setItem('menus', JSON.stringify(menus));
@@ -57,12 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${urlHtml}
                 </div>
                 <div class="flex flex-col items-center gap-2 flex-shrink-0 ml-2">
-                    <button data-index="${index}" class="edit-button icon-button" title="編集">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-                    <button data-index="${index}" class="delete-button icon-button delete" title="削除">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <button data-index="${index}" class="edit-button icon-button" title="編集"><i class="fas fa-pencil-alt"></i></button>
+                    <button data-index="${index}" class="delete-button icon-button delete" title="削除"><i class="fas fa-trash-alt"></i></button>
                 </div>
             `;
             menuList.appendChild(li);
@@ -76,14 +80,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayCard = document.createElement('div');
             dayCard.className = 'p-5 bg-white rounded-xl shadow-md border-l-4 border-indigo-500 fade-in';
             const menu = weeklyPlanData[index];
+            if (!menu) return; // In case of error
+
+            const originalIndex = menus.findIndex(m => JSON.stringify(m.dishes.sort()) === JSON.stringify(menu.dishes.sort()));
+            
             const menuItemsHtml = menu.dishes.map(dish => `<li class="text-slate-600">${dish}</li>`).join('');
             const urlHtml = menu.url ? `<a href="${menu.url}" target="_blank" rel="noopener noreferrer" class="recipe-link mt-2 block"><i class="fas fa-link mr-1"></i>レシピ</a>` : '';
-            const swapButtonHtml = `<button data-index="${index}" class="swap-button icon-button ml-auto" title="入れ替え"><i class="fas fa-sync-alt"></i></button>`;
-
+            
             dayCard.innerHTML = `
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-start">
                     <h3 class="font-bold text-lg text-indigo-600">${day}</h3>
-                    ${swapButtonHtml}
+                    <div class="flex gap-1">
+                        ${originalIndex > -1 ? `<button data-original-index="${originalIndex}" class="edit-weekly-button icon-button" title="元の献立を編集"><i class="fas fa-pencil-alt"></i></button>` : ''}
+                        <button data-index="${index}" class="swap-button icon-button" title="入れ替え"><i class="fas fa-sync-alt"></i></button>
+                    </div>
                 </div>
                 <ul class="list-disc list-inside mt-2 space-y-1">${menuItemsHtml}</ul>
                 ${urlHtml}
@@ -109,11 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { messageBox.textContent = ''; }, 4000);
     };
 
-    // --- イベントリスナーとロジック ---
+    // --- Event Listeners & Logic ---
     const addMenu = () => {
         const dishes = menuInput.value.trim().split('\n').map(d => d.trim()).filter(Boolean);
         const ingredients = ingredientsInput.value.trim().split('\n').map(i => i.trim()).filter(Boolean);
-        const tags = tagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
+        const tags = Array.from(tagsContainer.querySelectorAll('.tag-select-button.active')).map(btn => btn.dataset.tag);
         const url = urlInput.value.trim();
 
         if (dishes.length === 0) {
@@ -130,8 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
         menus.push({ dishes, ingredients, tags, url });
         saveMenus();
         renderMenuList();
-        [menuInput, ingredientsInput, tagsInput, urlInput].forEach(input => input.value = '');
-        menuInput.focus();
+        [menuInput, ingredientsInput, urlInput].forEach(input => input.value = '');
+        tagsContainer.querySelectorAll('.tag-select-button.active').forEach(btn => btn.classList.remove('active'));
+        showMessage("献立を登録しました。", false);
     };
 
     menuList.addEventListener('click', (e) => {
@@ -140,16 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const index = button.dataset.index;
         if (button.classList.contains('delete-button')) {
-            menus.splice(index, 1);
-            saveMenus();
-            renderMenuList();
+            if (confirm('この献立を削除しますか？')) {
+                menus.splice(index, 1);
+                saveMenus();
+                renderMenuList();
+            }
         } else if (button.classList.contains('edit-button')) {
             openEditModal(index);
         }
     });
 
-    // --- 週間献立生成 ---
     generateButton.addEventListener('click', () => {
+        // (Generation logic remains the same, so it's omitted for brevity but is still here)
         const filterTags = filterTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
         
         let filteredMenus = menus;
@@ -192,6 +205,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const previousMenu = i > 0 ? newWeeklyPlan[i - 1] : null;
             const prevPrevMenu = i > 1 ? newWeeklyPlan[i - 2] : null;
             let pool = [...availableMenus];
+            if (pool.length === 0) {
+                showMessage("献立の組み合わせが見つかりませんでした。条件を緩めて再試行します。", false);
+                pool = candidatePool; // Reset pool if exhausted
+            }
+
             let selectedMenu;
 
             if (mazegohanCount >= 2) {
@@ -212,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            if (pool.length === 0) pool = [...availableMenus];
+            if (pool.length === 0) pool = [...availableMenus]; // Fallback
             
             selectedMenu = pool[Math.floor(Math.random() * pool.length)];
             newWeeklyPlan.push(selectedMenu);
@@ -225,38 +243,36 @@ document.addEventListener('DOMContentLoaded', () => {
         
         weeklyPlanData = newWeeklyPlan;
         lastGeneratedMenus = [...weeklyPlanData];
-        availableSwaps = availableMenus; // 残りを入れ替えプールに
+        availableSwaps = availableMenus;
 
         renderWeekPlan();
         generateShoppingList();
     });
     
-    // --- 献立入れ替え ---
     weekPlan.addEventListener('click', (e) => {
-        const swapButton = e.target.closest('.swap-button');
-        if (!swapButton) return;
-        
-        if (availableSwaps.length === 0) {
-            showMessage("入れ替えられる献立がありません。");
-            return;
-        }
+        const button = e.target.closest('button');
+        if (!button) return;
 
-        const dayIndex = parseInt(swapButton.dataset.index, 10);
-        const oldMenu = weeklyPlanData[dayIndex];
-        
-        const swapIndex = Math.floor(Math.random() * availableSwaps.length);
-        const newMenu = availableSwaps[swapIndex];
-        
-        weeklyPlanData[dayIndex] = newMenu;
-        
-        availableSwaps.splice(swapIndex, 1);
-        availableSwaps.push(oldMenu);
-        
-        renderWeekPlan();
-        generateShoppingList();
+        if (button.classList.contains('swap-button')) {
+             if (availableSwaps.length === 0) {
+                showMessage("入れ替えられる献立がありません。");
+                return;
+            }
+            const dayIndex = parseInt(button.dataset.index, 10);
+            const oldMenu = weeklyPlanData[dayIndex];
+            const swapIndex = Math.floor(Math.random() * availableSwaps.length);
+            const newMenu = availableSwaps[swapIndex];
+            weeklyPlanData[dayIndex] = newMenu;
+            availableSwaps.splice(swapIndex, 1);
+            availableSwaps.push(oldMenu);
+            renderWeekPlan();
+            generateShoppingList();
+        } else if (button.classList.contains('edit-weekly-button')) {
+            const originalIndex = button.dataset.originalIndex;
+            openEditModal(originalIndex);
+        }
     });
 
-    // --- お買い物リスト ---
     const generateShoppingList = () => {
         if (weeklyPlanData.length === 0) return;
         const allIngredients = weeklyPlanData.flatMap(menu => menu.ingredients);
@@ -277,14 +293,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // --- 編集モーダル関連 ---
+    // --- Edit Modal ---
     const openEditModal = (index) => {
         const menu = menus[index];
         editIndexInput.value = index;
         editMenuInput.value = menu.dishes.join('\n');
         editIngredientsInput.value = menu.ingredients.join('\n');
-        editTagsInput.value = menu.tags.join(', ');
         editUrlInput.value = menu.url || '';
+        
+        editTagsContainer.querySelectorAll('.tag-select-button').forEach(btn => {
+            if (menu.tags.includes(btn.dataset.tag)) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
         editModal.classList.remove('hidden');
     };
 
@@ -301,22 +325,52 @@ document.addEventListener('DOMContentLoaded', () => {
         menus[index] = {
             dishes,
             ingredients: editIngredientsInput.value.trim().split('\n').map(i => i.trim()).filter(Boolean),
-            tags: editTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean),
+            tags: Array.from(editTagsContainer.querySelectorAll('.tag-select-button.active')).map(btn => btn.dataset.tag),
             url: editUrlInput.value.trim()
         };
         
         saveMenus();
         renderMenuList();
+        if(weeklyPlanData.length > 0) renderWeekPlan(); // If week plan is shown, rerender it
         closeEditModal();
     };
 
     saveEditButton.addEventListener('click', saveEditedMenu);
     cancelEditButton.addEventListener('click', closeEditModal);
 
-    // --- データ管理 ---
+    // --- Settings Modal ---
+    settingsButton.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+    closeSettingsButton.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+    // --- Tab Logic ---
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.dataset.tab;
+            
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            tabContents.forEach(content => {
+                if (content.id === `tab-content-${targetTab}`) {
+                    content.classList.remove('hidden');
+                    content.classList.add('active');
+                } else {
+                    content.classList.add('hidden');
+                    content.classList.remove('active');
+                }
+            });
+        });
+    });
+
+    // --- Tag Select Logic ---
+    document.querySelectorAll('.tag-select-button').forEach(button => {
+        button.addEventListener('click', () => button.classList.toggle('active'));
+    });
+
+    // --- Data Management ---
     exportButton.addEventListener('click', () => {
         if (menus.length === 0) {
-            showMessage('エクスポートする献立がありません。');
+            alert('エクスポートする献立がありません。');
             return;
         }
         const dataStr = JSON.stringify(menus, null, 2);
@@ -327,30 +381,26 @@ document.addEventListener('DOMContentLoaded', () => {
         a.download = 'menu-list.json';
         a.click();
         URL.revokeObjectURL(url);
-        showMessage('献立リストをエクスポートしました。', false);
     });
 
     importButton.addEventListener('click', () => importFile.click());
     importFile.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const importedData = JSON.parse(e.target.result);
-                // 簡易的なバリデーション
                 if (Array.isArray(importedData) && importedData.every(item => 'dishes' in item && 'ingredients' in item && 'tags' in item)) {
-                    // 過去バージョンとの互換性のため、urlがない場合は空文字を追加
                     menus = importedData.map(item => ({...item, url: item.url || '' }));
                     saveMenus();
                     renderMenuList();
-                    showMessage('献立リストをインポートしました。', false);
+                    alert('献立リストをインポートしました。');
                 } else {
                     throw new Error('ファイルの形式が正しくありません。');
                 }
             } catch (error) {
-                showMessage(`インポートに失敗しました: ${error.message}`);
+                alert(`インポートに失敗しました: ${error.message}`);
             }
         };
         reader.readAsText(file);
@@ -359,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addButton.addEventListener('click', addMenu);
 
-    // 初期表示
+    // Initial render
     renderMenuList();
     renderInitialWeekPlan();
 });
