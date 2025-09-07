@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlInput = document.getElementById('url-input');
     const addButton = document.getElementById('add-button');
     const menuList = document.getElementById('menu-list');
+    const searchInput = document.getElementById('search-input');
     const generateButton = document.getElementById('generate-button');
     const weekPlan = document.getElementById('week-plan');
     const messageBox = document.getElementById('message-box');
@@ -35,23 +36,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
-    // データ構造: [{dishes: [], ingredients: [], tags: [], url: ""}, ...]
+    // データ構造
     let menus = JSON.parse(localStorage.getItem('menus')) || [];
-    let weeklyPlanData = [];
-    let lastGeneratedMenus = [];
+    let weeklyPlanData = JSON.parse(localStorage.getItem('weeklyPlanData')) || [];
+    let lastGeneratedMenus = JSON.parse(localStorage.getItem('lastGeneratedMenus')) || [];
     let availableSwaps = [];
 
     // --- データ処理関数 ---
     const saveMenus = () => localStorage.setItem('menus', JSON.stringify(menus));
+    const saveWeeklyPlan = () => localStorage.setItem('weeklyPlanData', JSON.stringify(weeklyPlanData));
+    const saveLastGenerated = () => localStorage.setItem('lastGeneratedMenus', JSON.stringify(lastGeneratedMenus));
 
     // --- 描画関数 ---
-    const renderMenuList = () => {
+    const renderMenuList = (searchTerm = '') => {
         menuList.innerHTML = '';
-        if (menus.length === 0) {
-            menuList.innerHTML = '<li class="text-slate-400">まだ献立が登録されていません。</li>';
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+        const filteredMenus = menus.filter(menu => {
+            if (!searchTerm) return true;
+            const inDishes = menu.dishes.some(d => d.toLowerCase().includes(lowerCaseSearchTerm));
+            const inTags = menu.tags.some(t => t.toLowerCase().includes(lowerCaseSearchTerm));
+            return inDishes || inTags;
+        });
+
+        if (filteredMenus.length === 0) {
+            menuList.innerHTML = `<li class="text-slate-400">${searchTerm ? '該当する献立がありません。' : 'まだ献立が登録されていません。'}</li>`;
             return;
         }
-        menus.forEach((menu, index) => {
+
+        filteredMenus.forEach((menu) => {
+            const originalIndex = menus.findIndex(originalMenu => originalMenu === menu);
             const li = document.createElement('li');
             li.className = 'flex justify-between items-start bg-slate-50 p-4 rounded-lg fade-in';
             const menuItemsHtml = menu.dishes.map(dish => `<span>・${dish}</span>`).join('<br>');
@@ -65,8 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${urlHtml}
                 </div>
                 <div class="flex flex-col items-center gap-2 flex-shrink-0 ml-2">
-                    <button data-index="${index}" class="edit-button icon-button" title="編集"><i class="fas fa-pencil-alt"></i></button>
-                    <button data-index="${index}" class="delete-button icon-button delete" title="削除"><i class="fas fa-trash-alt"></i></button>
+                    <button data-index="${originalIndex}" class="edit-button icon-button" title="編集"><i class="fas fa-pencil-alt"></i></button>
+                    <button data-index="${originalIndex}" class="delete-button icon-button delete" title="削除"><i class="fas fa-trash-alt"></i></button>
                 </div>
             `;
             menuList.appendChild(li);
@@ -80,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dayCard = document.createElement('div');
             dayCard.className = 'p-5 bg-white rounded-xl shadow-md border-l-4 border-indigo-500 fade-in';
             const menu = weeklyPlanData[index];
-            if (!menu) return; // In case of error
+            if (!menu) return;
 
             const originalIndex = menus.findIndex(m => JSON.stringify(m.dishes.sort()) === JSON.stringify(menu.dishes.sort()));
             
@@ -139,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         menus.push({ dishes, ingredients, tags, url });
         saveMenus();
-        renderMenuList();
+        renderMenuList(searchInput.value); // Re-render with current search
         [menuInput, ingredientsInput, urlInput].forEach(input => input.value = '');
         tagsContainer.querySelectorAll('.tag-select-button.active').forEach(btn => btn.classList.remove('active'));
         showMessage("献立を登録しました。", false);
@@ -154,15 +168,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (confirm('この献立を削除しますか？')) {
                 menus.splice(index, 1);
                 saveMenus();
-                renderMenuList();
+                renderMenuList(searchInput.value); // Re-render with current search
             }
         } else if (button.classList.contains('edit-button')) {
             openEditModal(index);
         }
     });
+    
+    searchInput.addEventListener('input', () => renderMenuList(searchInput.value));
 
     generateButton.addEventListener('click', () => {
-        // (Generation logic remains the same, so it's omitted for brevity but is still here)
         const filterTags = filterTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
         
         let filteredMenus = menus;
@@ -207,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let pool = [...availableMenus];
             if (pool.length === 0) {
                 showMessage("献立の組み合わせが見つかりませんでした。条件を緩めて再試行します。", false);
-                pool = candidatePool; // Reset pool if exhausted
+                pool = candidatePool; 
             }
 
             let selectedMenu;
@@ -230,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            if (pool.length === 0) pool = [...availableMenus]; // Fallback
+            if (pool.length === 0) pool = [...availableMenus];
             
             selectedMenu = pool[Math.floor(Math.random() * pool.length)];
             newWeeklyPlan.push(selectedMenu);
@@ -244,6 +259,9 @@ document.addEventListener('DOMContentLoaded', () => {
         weeklyPlanData = newWeeklyPlan;
         lastGeneratedMenus = [...weeklyPlanData];
         availableSwaps = availableMenus;
+        
+        saveWeeklyPlan();
+        saveLastGenerated();
 
         renderWeekPlan();
         generateShoppingList();
@@ -265,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
             weeklyPlanData[dayIndex] = newMenu;
             availableSwaps.splice(swapIndex, 1);
             availableSwaps.push(oldMenu);
+            saveWeeklyPlan();
             renderWeekPlan();
             generateShoppingList();
         } else if (button.classList.contains('edit-weekly-button')) {
@@ -274,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const generateShoppingList = () => {
-        if (weeklyPlanData.length === 0) return;
+        if (!weeklyPlanData || weeklyPlanData.length === 0) return;
         const allIngredients = weeklyPlanData.flatMap(menu => menu.ingredients);
         const uniqueIngredients = [...new Set(allIngredients)].sort();
 
@@ -302,11 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editUrlInput.value = menu.url || '';
         
         editTagsContainer.querySelectorAll('.tag-select-button').forEach(btn => {
-            if (menu.tags.includes(btn.dataset.tag)) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+            btn.classList.toggle('active', menu.tags.includes(btn.dataset.tag));
         });
         
         editModal.classList.remove('hidden');
@@ -330,8 +345,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         saveMenus();
-        renderMenuList();
-        if(weeklyPlanData.length > 0) renderWeekPlan(); // If week plan is shown, rerender it
+        renderMenuList(searchInput.value); // Re-render with current search
+        if(weeklyPlanData.length > 0) renderWeekPlan();
         closeEditModal();
     };
 
@@ -351,13 +366,8 @@ document.addEventListener('DOMContentLoaded', () => {
             button.classList.add('active');
             
             tabContents.forEach(content => {
-                if (content.id === `tab-content-${targetTab}`) {
-                    content.classList.remove('hidden');
-                    content.classList.add('active');
-                } else {
-                    content.classList.add('hidden');
-                    content.classList.remove('active');
-                }
+                content.classList.toggle('hidden', content.id !== `tab-content-${targetTab}`);
+                content.classList.toggle('active', content.id === `tab-content-${targetTab}`);
             });
         });
     });
@@ -375,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const dataStr = JSON.stringify(menus, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
+        const url = URL.ObjectURL(dataBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'menu-list.json';
@@ -411,6 +421,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial render
     renderMenuList();
-    renderInitialWeekPlan();
+    if (weeklyPlanData && weeklyPlanData.length === 7) {
+        renderWeekPlan();
+        generateShoppingList();
+    } else {
+        renderInitialWeekPlan();
+    }
 });
 
