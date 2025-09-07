@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuInput = document.getElementById('menu-input');
     const ingredientsInput = document.getElementById('ingredients-input');
     const tagsInput = document.getElementById('tags-input');
+    const urlInput = document.getElementById('url-input');
     const addButton = document.getElementById('add-button');
     const menuList = document.getElementById('menu-list');
     const generateButton = document.getElementById('generate-button');
@@ -14,11 +15,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportButton = document.getElementById('export-button');
     const importButton = document.getElementById('import-button');
     const importFile = document.getElementById('import-file');
+    
+    // Edit Modal Elements
+    const editModal = document.getElementById('edit-modal');
+    const editIndexInput = document.getElementById('edit-index');
+    const editMenuInput = document.getElementById('edit-menu-input');
+    const editIngredientsInput = document.getElementById('edit-ingredients-input');
+    const editTagsInput = document.getElementById('edit-tags-input');
+    const editUrlInput = document.getElementById('edit-url-input');
+    const saveEditButton = document.getElementById('save-edit-button');
+    const cancelEditButton = document.getElementById('cancel-edit-button');
 
-    // データ構造: [{dishes: [], ingredients: [], tags: []}, ...]
+
+    // データ構造: [{dishes: [], ingredients: [], tags: [], url: ""}, ...]
     let menus = JSON.parse(localStorage.getItem('menus')) || [];
-    let weeklyPlanData = []; // 生成された献立を保持
-    let lastGeneratedMenus = []; // 前回生成された献立を保持
+    let weeklyPlanData = [];
+    let lastGeneratedMenus = [];
+    let availableSwaps = []; // 入れ替え可能な献立プール
 
     // --- データ処理関数 ---
     const saveMenus = () => localStorage.setItem('menus', JSON.stringify(menus));
@@ -35,16 +48,47 @@ document.addEventListener('DOMContentLoaded', () => {
             li.className = 'flex justify-between items-start bg-slate-50 p-4 rounded-lg fade-in';
             const menuItemsHtml = menu.dishes.map(dish => `<span>・${dish}</span>`).join('<br>');
             const tagsHtml = menu.tags.map(tag => `<span class="tag">${tag}</span>`).join(' ');
+            const urlHtml = menu.url ? `<a href="${menu.url}" target="_blank" rel="noopener noreferrer" class="recipe-link mt-2 block"><i class="fas fa-link mr-1"></i>レシピを見る</a>` : '';
+            
             li.innerHTML = `
                 <div>
                     <div class="flex flex-col font-semibold text-slate-800">${menuItemsHtml}</div>
                     <div class="mt-2 flex flex-wrap gap-2">${tagsHtml}</div>
+                    ${urlHtml}
                 </div>
-                <button data-index="${index}" class="delete-button text-slate-400 hover:text-red-500 flex-shrink-0 ml-4 p-1 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
-                </button>
+                <div class="flex flex-col items-center gap-2 flex-shrink-0 ml-2">
+                    <button data-index="${index}" class="edit-button icon-button" title="編集">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                    <button data-index="${index}" class="delete-button icon-button delete" title="削除">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
             `;
             menuList.appendChild(li);
+        });
+    };
+    
+    const renderWeekPlan = () => {
+        weekPlan.innerHTML = '';
+        const days = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'];
+        days.forEach((day, index) => {
+            const dayCard = document.createElement('div');
+            dayCard.className = 'p-5 bg-white rounded-xl shadow-md border-l-4 border-indigo-500 fade-in';
+            const menu = weeklyPlanData[index];
+            const menuItemsHtml = menu.dishes.map(dish => `<li class="text-slate-600">${dish}</li>`).join('');
+            const urlHtml = menu.url ? `<a href="${menu.url}" target="_blank" rel="noopener noreferrer" class="recipe-link mt-2 block"><i class="fas fa-link mr-1"></i>レシピ</a>` : '';
+            const swapButtonHtml = `<button data-index="${index}" class="swap-button icon-button ml-auto" title="入れ替え"><i class="fas fa-sync-alt"></i></button>`;
+
+            dayCard.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-indigo-600">${day}</h3>
+                    ${swapButtonHtml}
+                </div>
+                <ul class="list-disc list-inside mt-2 space-y-1">${menuItemsHtml}</ul>
+                ${urlHtml}
+            `;
+            weekPlan.appendChild(dayCard);
         });
     };
 
@@ -70,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dishes = menuInput.value.trim().split('\n').map(d => d.trim()).filter(Boolean);
         const ingredients = ingredientsInput.value.trim().split('\n').map(i => i.trim()).filter(Boolean);
         const tags = tagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
+        const url = urlInput.value.trim();
 
         if (dishes.length === 0) {
             showMessage('献立を最低1品は入力してください。');
@@ -82,22 +127,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        menus.push({ dishes, ingredients, tags });
+        menus.push({ dishes, ingredients, tags, url });
         saveMenus();
         renderMenuList();
-        [menuInput, ingredientsInput, tagsInput].forEach(input => input.value = '');
+        [menuInput, ingredientsInput, tagsInput, urlInput].forEach(input => input.value = '');
         menuInput.focus();
     };
 
     menuList.addEventListener('click', (e) => {
-        if (e.target.closest('.delete-button')) {
-            const index = e.target.closest('.delete-button').dataset.index;
+        const button = e.target.closest('button');
+        if (!button) return;
+
+        const index = button.dataset.index;
+        if (button.classList.contains('delete-button')) {
             menus.splice(index, 1);
             saveMenus();
             renderMenuList();
+        } else if (button.classList.contains('edit-button')) {
+            openEditModal(index);
         }
     });
 
+    // --- 週間献立生成 ---
     generateButton.addEventListener('click', () => {
         const filterTags = filterTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean);
         
@@ -110,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showMessage(`日替わり献立には7種類以上の献立が必要です。(現在: ${filteredMenus.length}種類)`);
             return;
         }
-
+        
         let candidatePool = filteredMenus.filter(menu => 
             !lastGeneratedMenus.some(lastMenu => 
                 JSON.stringify(lastMenu.dishes.sort()) === JSON.stringify(menu.dishes.sort())
@@ -123,8 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lastGeneratedMenus = [];
         }
 
-        weekPlan.innerHTML = '';
-        shoppingListContainer.classList.add('hidden');
         let newWeeklyPlan = [];
         let availableMenus = [...candidatePool];
         let mazegohanCount = 0;
@@ -176,22 +225,40 @@ document.addEventListener('DOMContentLoaded', () => {
         
         weeklyPlanData = newWeeklyPlan;
         lastGeneratedMenus = [...weeklyPlanData];
+        availableSwaps = availableMenus; // 残りを入れ替えプールに
 
-        const days = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'];
-        days.forEach((day, index) => {
-            const dayCard = document.createElement('div');
-            dayCard.className = 'p-5 bg-white rounded-xl shadow-md border-l-4 border-indigo-500 fade-in';
-            const menuItemsHtml = weeklyPlanData[index].dishes.map(dish => `<li class="text-slate-600">${dish}</li>`).join('');
-            dayCard.innerHTML = `<h3 class="font-bold text-lg text-indigo-600">${day}</h3><ul class="list-disc list-inside mt-2 space-y-1">${menuItemsHtml}</ul>`;
-            weekPlan.appendChild(dayCard);
-        });
+        renderWeekPlan();
+        generateShoppingList();
+    });
+    
+    // --- 献立入れ替え ---
+    weekPlan.addEventListener('click', (e) => {
+        const swapButton = e.target.closest('.swap-button');
+        if (!swapButton) return;
         
+        if (availableSwaps.length === 0) {
+            showMessage("入れ替えられる献立がありません。");
+            return;
+        }
+
+        const dayIndex = parseInt(swapButton.dataset.index, 10);
+        const oldMenu = weeklyPlanData[dayIndex];
+        
+        const swapIndex = Math.floor(Math.random() * availableSwaps.length);
+        const newMenu = availableSwaps[swapIndex];
+        
+        weeklyPlanData[dayIndex] = newMenu;
+        
+        availableSwaps.splice(swapIndex, 1);
+        availableSwaps.push(oldMenu);
+        
+        renderWeekPlan();
         generateShoppingList();
     });
 
+    // --- お買い物リスト ---
     const generateShoppingList = () => {
         if (weeklyPlanData.length === 0) return;
-        
         const allIngredients = weeklyPlanData.flatMap(menu => menu.ingredients);
         const uniqueIngredients = [...new Set(allIngredients)].sort();
 
@@ -201,10 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const id = `item-${index}`;
                 const listItem = document.createElement('div');
                 listItem.className = 'shopping-list-item';
-                listItem.innerHTML = `
-                    <input type="checkbox" id="${id}">
-                    <label for="${id}">${item}</label>
-                `;
+                listItem.innerHTML = `<input type="checkbox" id="${id}"><label for="${id}">${item}</label>`;
                 shoppingList.appendChild(listItem);
             });
             shoppingListContainer.classList.remove('hidden');
@@ -212,8 +276,44 @@ document.addEventListener('DOMContentLoaded', () => {
             shoppingListContainer.classList.add('hidden');
         }
     };
+    
+    // --- 編集モーダル関連 ---
+    const openEditModal = (index) => {
+        const menu = menus[index];
+        editIndexInput.value = index;
+        editMenuInput.value = menu.dishes.join('\n');
+        editIngredientsInput.value = menu.ingredients.join('\n');
+        editTagsInput.value = menu.tags.join(', ');
+        editUrlInput.value = menu.url || '';
+        editModal.classList.remove('hidden');
+    };
 
-    // データ管理機能
+    const closeEditModal = () => editModal.classList.add('hidden');
+
+    const saveEditedMenu = () => {
+        const index = parseInt(editIndexInput.value, 10);
+        const dishes = editMenuInput.value.trim().split('\n').map(d => d.trim()).filter(Boolean);
+        if (dishes.length === 0) {
+            alert('献立は最低1品入力してください。');
+            return;
+        }
+        
+        menus[index] = {
+            dishes,
+            ingredients: editIngredientsInput.value.trim().split('\n').map(i => i.trim()).filter(Boolean),
+            tags: editTagsInput.value.trim().split(',').map(t => t.trim()).filter(Boolean),
+            url: editUrlInput.value.trim()
+        };
+        
+        saveMenus();
+        renderMenuList();
+        closeEditModal();
+    };
+
+    saveEditButton.addEventListener('click', saveEditedMenu);
+    cancelEditButton.addEventListener('click', closeEditModal);
+
+    // --- データ管理 ---
     exportButton.addEventListener('click', () => {
         if (menus.length === 0) {
             showMessage('エクスポートする献立がありません。');
@@ -239,8 +339,10 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = (e) => {
             try {
                 const importedData = JSON.parse(e.target.result);
+                // 簡易的なバリデーション
                 if (Array.isArray(importedData) && importedData.every(item => 'dishes' in item && 'ingredients' in item && 'tags' in item)) {
-                    menus = importedData;
+                    // 過去バージョンとの互換性のため、urlがない場合は空文字を追加
+                    menus = importedData.map(item => ({...item, url: item.url || '' }));
                     saveMenus();
                     renderMenuList();
                     showMessage('献立リストをインポートしました。', false);
@@ -261,3 +363,4 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMenuList();
     renderInitialWeekPlan();
 });
+
