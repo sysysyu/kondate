@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleMenuListClick = (e) => {
         const button = e.target.closest('button');
         if (!button) return;
+
         const id = Number(button.dataset.id);
         if (!id) return;
 
