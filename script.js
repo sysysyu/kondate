@@ -51,13 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let generationStats = { count: 0, lastMonthlyUsed: -Infinity };
     let customShoppingItems = [];
     let shoppingListState = {}; // { '卵': true, '鶏肉': false }
+    let messageTimer = null; // メッセージ表示用のタイマーID
 
     // --- Utility Functions ---
     const showMessage = (msg, isError = true) => {
+        clearTimeout(messageTimer); // 既存のタイマーをクリア
         elements.messageBox.textContent = msg;
         elements.messageBox.className = 'message-box';
         elements.messageBox.classList.add(isError ? 'error' : 'success', 'show');
-        setTimeout(() => elements.messageBox.classList.remove('show'), 3000);
+        messageTimer = setTimeout(() => { // 新しいタイマーを設定
+            elements.messageBox.classList.remove('show');
+        }, 3000);
     };
 
     // --- Data Persistence ---
