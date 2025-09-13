@@ -206,16 +206,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let newPlan = [];
         let available = [...candidatePool];
         let mazegohanCount = 0;
+        let menruiCount = 0;
         const days = 7;
 
         const isSpecial = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
         const isMazegohan = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯'));
-        const getCat = m => {
+        
+        const getPrimaryCategory = m => {
             if (!m || !m.tags) return 'other';
             if (m.tags.includes('和食')) return 'japanese';
             if (m.tags.includes('中華')) return 'chinese';
             if (m.tags.includes('洋食')) return 'western';
+            if (m.tags.includes('麺類')) return 'noodles';
             return 'other';
+        };
+        
+        const applyFilter = (currentPool, filterFn) => {
+            const filtered = currentPool.filter(filterFn);
+            return filtered.length > 0 ? filtered : currentPool;
         };
 
         for (let i = 0; i < days; i++) {
@@ -226,43 +234,47 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let pool = [...available];
             const prev = i > 0 ? newPlan[i - 1] : null;
-            const prev2 = i > 1 ? newPlan[i - 2] : null;
 
-            // --- Apply filters progressively ---
-            // Each filter is only applied if it doesn't result in an empty list.
+            // --- Apply filters ---
 
-            // Rule 1: "混ぜご飯" or "豚汁" must be followed by a similar dish if possible.
-            if (prev && isSpecial(prev)) {
-                const specialPool = pool.filter(isSpecial);
-                if (specialPool.length > 0) pool = specialPool;
+            // Hard constraint: Max 1 "麺類"
+            if (menruiCount >= 1) {
+                pool = applyFilter(pool, m => !m.tags.includes('麺類'));
             }
 
-            // Rule 2: Limit "混ぜご飯" to 2 times a week.
+            // Hard constraint: Max 2 "混ぜご飯"
             if (mazegohanCount >= 2) {
-                const nonMazegohanPool = pool.filter(m => !isMazegohan(m));
-                if (nonMazegohanPool.length > 0) pool = nonMazegohanPool;
+                pool = applyFilter(pool, m => !isMazegohan(m));
             }
-            
-            // Rule 3: Avoid 3 consecutive days of the same category.
-            if (prev && prev2 && getCat(prev) !== 'other' && getCat(prev) === getCat(prev2)) {
-                const balancedPool = pool.filter(m => getCat(m) !== getCat(prev));
-                if (balancedPool.length > 0) pool = balancedPool;
+
+            // Strong suggestion: Avoid consecutive tags
+            if (prev) {
+                const prevCategory = getPrimaryCategory(prev);
+                if (prevCategory !== 'other') {
+                    pool = applyFilter(pool, m => getPrimaryCategory(m) !== prevCategory);
+                }
+            }
+
+            // Strong suggestion: "混ぜご飯/豚汁" continuity
+            if (prev && isSpecial(prev)) {
+                pool = applyFilter(pool, isSpecial);
             }
             
             // --- Select a menu ---
-            if (pool.length === 0) { // Ultimate fallback
+            if (pool.length === 0) { // Fallback if filters are too restrictive
                  pool = [...available];
             }
             
             const selected = pool[Math.floor(Math.random() * pool.length)];
 
             if (!selected) {
-                showMessage("予期せぬエラーで献立作成に失敗しました。");
-                return; // Exit the function to prevent further errors.
+                showMessage("献立の候補が見つかりませんでした。登録内容を確認してください。");
+                return;
             }
 
             newPlan.push(selected);
             if (isMazegohan(selected)) mazegohanCount++;
+            if (selected.tags.includes('麺類')) menruiCount++;
             
             available = available.filter(m => m.id !== selected.id);
         }
