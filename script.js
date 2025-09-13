@@ -76,6 +76,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return defaultValue;
     };
+    
+    // Function to ensure all menus have necessary properties (ID, mealType)
+    const sanitizeMenus = (menuArray) => {
+        return menuArray.map((m, index) => ({
+            ...m,
+            id: m.id || Date.now() + index, // Assign a unique ID if missing
+            mealType: m.mealType || 'normal' // Assign default mealType if missing
+        }));
+    };
 
     // --- Rendering ---
     const renderMenuList = (searchTerm = '') => {
@@ -524,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = JSON.parse(event.target.result);
                 if (data && Array.isArray(data.menus)) {
-                    menus = data.menus.map(m => ({ ...m, mealType: m.mealType || 'normal' }));
+                    menus = sanitizeMenus(data.menus);
                     weeklyPlan = data.weeklyPlan || [];
                     lastGeneratedMenus = data.lastGeneratedMenus || [];
                     generationStats = data.generationStats || { count: 0, lastMonthlyUsed: -Infinity };
@@ -581,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initial Load ---
     const initializeApp = () => {
-        menus = loadData('menus', []).map(m => ({ ...m, mealType: m.mealType || 'normal' }));
+        menus = sanitizeMenus(loadData('menus', []));
         weeklyPlan = loadData('weeklyPlan', []);
         lastGeneratedMenus = loadData('lastGeneratedMenus', []);
         generationStats = loadData('generationStats', { count: 0, lastMonthlyUsed: -Infinity });
