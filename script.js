@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         menuInput: getElem('menu-input'),
         ingredientsInput: getElem('ingredients-input'),
         tagsContainer: getElem('tags-container'),
+        mealTypeContainer: getElem('meal-type-container'),
         urlInput: getElem('url-input'),
         // List View
         searchInput: getElem('search-input'),
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editMenuInput: getElem('edit-menu-input'),
         editIngredientsInput: getElem('edit-ingredients-input'),
         editTagsContainer: getElem('edit-tags-container'),
+        editMealTypeContainer: getElem('edit-meal-type-container'),
         editUrlInput: getElem('edit-url-input'),
         saveEditButton: getElem('save-edit-button'),
         cancelEditButton: getElem('cancel-edit-button'),
@@ -36,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal: getElem('settings-modal'),
         closeSettingsButton: getElem('close-settings-button'),
         exportButton: getElem('export-button'),
-        importFileLabel: querySel('label[for="import-file"]'),
         importFileInput: getElem('import-file'),
     };
 
@@ -60,11 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedData = localStorage.getItem(key);
         if (savedData) {
             try {
-                // Handle both array and object defaults
                 const parsed = JSON.parse(savedData);
-                if (typeof parsed === 'object' && parsed !== null) {
-                    return parsed;
-                }
+                if (typeof parsed === 'object' && parsed !== null) return parsed;
                 return defaultValue;
             } catch (e) {
                 console.error(`Error parsing data for key "${key}":`, e);
@@ -92,9 +90,20 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredMenus.forEach(menu => {
             const card = document.createElement('div');
             card.className = 'bg-white p-5 rounded-lg shadow-md border border-slate-200 flex flex-col justify-between';
+            
+            let mealTypeBadge = '';
+            if (menu.mealType === 'bento') {
+                mealTypeBadge = `<span class="meal-type-badge bg-green-100 text-green-800">お弁当OK</span>`;
+            } else if (menu.mealType === 'weekend') {
+                mealTypeBadge = `<span class="meal-type-badge bg-purple-100 text-purple-800">週末向け</span>`;
+            }
+
             card.innerHTML = `
                 <div>
-                    <div class="flex flex-wrap gap-2 mb-3">${menu.tags.map(tag => `<span class="tag-display">${tag}</span>`).join('')}</div>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        ${menu.tags.map(tag => `<span class="tag-display">${tag}</span>`).join('')}
+                        ${mealTypeBadge}
+                    </div>
                     <ul class="list-disc list-inside text-slate-700 mb-3">${menu.dishes.map(dish => `<li>${dish}</li>`).join('')}</ul>
                     ${menu.url ? `<a href="${menu.url}" target="_blank" class="recipe-link">レシピを見る</a>` : ''}
                 </div>
@@ -164,19 +173,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const ingredients = elements.ingredientsInput.value.split('\n').map(i => i.trim()).filter(Boolean);
         const url = elements.urlInput.value.trim();
         const tags = Array.from(elements.tagsContainer.querySelectorAll('.active')).map(b => b.dataset.tag);
+        const mealType = elements.mealTypeContainer.querySelector('input[name="mealType"]:checked').value;
 
         if (dishes.length === 0 || tags.length === 0) {
             showMessage("献立とタグは必須です。");
             return;
         }
 
-        menus.push({ id: Date.now(), dishes, ingredients, url, tags });
+        menus.push({ id: Date.now(), dishes, ingredients, url, tags, mealType });
         saveData('menus', menus);
         renderMenuList();
         elements.menuInput.value = '';
         elements.ingredientsInput.value = '';
         elements.urlInput.value = '';
         elements.tagsContainer.querySelectorAll('.active').forEach(b => b.classList.remove('active'));
+        elements.mealTypeContainer.querySelector('input[value="normal"]').checked = true;
         showMessage("献立を登録しました。", false);
     };
 
@@ -197,25 +208,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleGeneratePlan = () => {
-        // --- Rule setup ---
         const allowMonthly = (generationStats.count - generationStats.lastMonthlyUsed) >= 4;
-        
-        // --- Pool creation ---
         let candidatePool = menus.filter(menu => !lastGeneratedMenus.some(last => last && last.id === menu.id));
         if (candidatePool.length < 7) {
             showMessage("新しい献立が足りないため、全ての献立から選び直します。", false);
             candidatePool = [...menus];
         }
-
-        // Apply "月1" filter
         if (!allowMonthly) {
             candidatePool = candidatePool.filter(m => !m.tags.includes('月1'));
         }
 
         if (candidatePool.length < 7) {
-            const baseMessage = `日替わり献立には7種類以上の献立が必要です。`;
             const reason = !allowMonthly ? `(今週は「月1」献立が除外されています)` : '';
-            showMessage(`${baseMessage} ${reason} (現在: ${candidatePool.length}種類)`);
+            showMessage(`日替わり献立には7種類以上の献立が必要です。${reason} (現在: ${candidatePool.length}種類)`);
             return;
         }
         
@@ -227,7 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isSpecial = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
         const isMazegohan = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯'));
-        
         const getPrimaryCategory = m => {
             if (!m || !m.tags) return 'other';
             if (m.tags.includes('和食')) return 'japanese';
@@ -236,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (m.tags.includes('麺類')) return 'noodles';
             return 'other';
         };
-        
         const applyFilter = (currentPool, filterFn) => {
             const filtered = currentPool.filter(filterFn);
             return filtered.length > 0 ? filtered : currentPool;
@@ -251,10 +254,18 @@ document.addEventListener('DOMContentLoaded', () => {
             let pool = [...available];
             const prev = i > 0 ? newPlan[i - 1] : null;
 
-            // --- Apply filters ---
+            // --- Day-specific Rules (Meal Type) ---
+            if (i <= 3) { // Mon-Thu: No weekend meals
+                pool = pool.filter(m => m.mealType !== 'weekend');
+            }
+            if (i <= 2) { // Mon-Wed: Prefer bento meals
+                const bentoPool = pool.filter(m => m.mealType === 'bento');
+                if (bentoPool.length > 0) pool = bentoPool;
+            }
+
+            // --- General Rules ---
             if (menruiCount >= 1) pool = applyFilter(pool, m => !m.tags.includes('麺類'));
             if (mazegohanCount >= 2) pool = applyFilter(pool, m => !isMazegohan(m));
-
             if (prev) {
                 const prevCategory = getPrimaryCategory(prev);
                 if (prevCategory !== 'other') {
@@ -268,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selected = pool[Math.floor(Math.random() * pool.length)];
 
             if (!selected) {
-                showMessage("献立の候補が見つかりませんでした。登録内容を確認してください。");
+                showMessage(`献立の候補が見つかりませんでした(${i + 1}日目)。登録内容を確認してください。`);
                 return;
             }
 
@@ -279,13 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
             available = available.filter(m => m.id !== selected.id);
         }
 
-        // --- Update state after successful generation ---
+        // --- Update state ---
         generationStats.count++;
         if (newPlan.some(m => m.tags.includes('月1'))) {
             generationStats.lastMonthlyUsed = generationStats.count;
         }
         saveData('generationStats', generationStats);
-
         weeklyPlan = newPlan;
         lastGeneratedMenus = [...newPlan];
         saveData('weeklyPlan', weeklyPlan);
@@ -323,6 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.editTagsContainer.querySelectorAll('.tag-select-button').forEach(btn => {
             btn.classList.toggle('active', menu.tags.includes(btn.dataset.tag));
         });
+        const mealTypeInput = elements.editMealTypeContainer.querySelector(`input[value="${menu.mealType || 'normal'}"]`);
+        if(mealTypeInput) mealTypeInput.checked = true;
+
         elements.editModal.classList.remove('hidden');
     };
 
@@ -335,6 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const dishes = elements.editMenuInput.value.split('\n').map(d => d.trim()).filter(Boolean);
         const tags = Array.from(elements.editTagsContainer.querySelectorAll('.active')).map(b => b.dataset.tag);
+        const mealType = elements.editMealTypeContainer.querySelector('input[name="editMealType"]:checked').value;
 
         if (dishes.length === 0 || tags.length === 0) {
             showMessage("献立とタグは必須です。");
@@ -346,7 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dishes,
             ingredients: elements.editIngredientsInput.value.split('\n').map(i => i.trim()).filter(Boolean),
             url: elements.editUrlInput.value.trim(),
-            tags
+            tags,
+            mealType,
         };
         
         saveData('menus', menus);
@@ -383,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = JSON.parse(event.target.result);
                 if (data && Array.isArray(data.menus)) {
-                    menus = data.menus;
+                    menus = data.menus.map(m => ({ ...m, mealType: m.mealType || 'normal' })); // Backward compatibility
                     weeklyPlan = data.weeklyPlan || [];
                     lastGeneratedMenus = data.lastGeneratedMenus || [];
                     generationStats = data.generationStats || { count: 0, lastMonthlyUsed: -Infinity };
@@ -418,28 +433,22 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.generateButton.addEventListener('click', handleGeneratePlan);
     elements.copyWeekPlanButton.addEventListener('click', handleCopyPlan);
     elements.weekPlanContainer.addEventListener('click', handleMenuListClick);
-    
-    // Modals
     elements.settingsButton.addEventListener('click', () => elements.settingsModal.classList.remove('hidden'));
     elements.closeSettingsButton.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
     elements.saveEditButton.addEventListener('click', handleSaveEdit);
     elements.cancelEditButton.addEventListener('click', closeEditModal);
-
-    // Tag Selection
     elements.tagsContainer.addEventListener('click', e => {
         if (e.target.classList.contains('tag-select-button')) e.target.classList.toggle('active');
     });
     elements.editTagsContainer.addEventListener('click', e => {
         if (e.target.classList.contains('tag-select-button')) e.target.classList.toggle('active');
     });
-    
-    // Data Management
     elements.exportButton.addEventListener('click', handleExport);
     elements.importFileInput.addEventListener('change', handleImport);
 
     // --- Initial Load ---
     const initializeApp = () => {
-        menus = loadData('menus', []);
+        menus = loadData('menus', []).map(m => ({ ...m, mealType: m.mealType || 'normal' })); // Backward compatibility
         weeklyPlan = loadData('weeklyPlan', []);
         lastGeneratedMenus = loadData('lastGeneratedMenus', []);
         generationStats = loadData('generationStats', { count: 0, lastMonthlyUsed: -Infinity });
