@@ -3,101 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1週間献立ランダム決定アプリ</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <title>週間献立メーカー</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="text-slate-700">
-
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+<body class="bg-slate-50 font-sans">
+    <div id="app" class="max-w-4xl mx-auto p-4 md:p-6">
         <header class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-sky-500">週間献立メーカー</h1>
-            <button id="settings-button" class="icon-button text-2xl text-slate-500 hover:text-indigo-600">
-                <i class="fas fa-cog"></i>
+            <h1 class="text-3xl font-bold text-indigo-700">週間献立メーカー</h1>
+            <button id="settings-button" class="icon-button text-slate-500 hover:text-indigo-600">
+                <i class="fas fa-cog text-2xl"></i>
             </button>
         </header>
 
-        <!-- Tab Navigation -->
         <nav class="flex border-b border-slate-200 mb-6">
-            <button class="tab-button active" data-tab="week">今週の献立</button>
+            <button class="tab-button active" data-tab="plan">今週の献立</button>
             <button class="tab-button" data-tab="register">献立を登録</button>
             <button class="tab-button" data-tab="list">登録リスト</button>
         </nav>
 
         <main>
-            <!-- Tab Content: This Week's Menu -->
-            <div id="tab-content-week" class="tab-content active">
-                <div class="card">
-                    <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                        <h2 class="text-2xl font-semibold text-slate-800">今週の献立</h2>
-                        <div class="flex items-center gap-3">
-                            <button id="copy-week-plan-button" class="bg-sky-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-sky-600 active:scale-95 transition-all duration-150 shadow-md hover:shadow-lg whitespace-nowrap">コピー</button>
-                            <button id="generate-button" class="bg-green-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-600 active:scale-95 transition-all duration-150 shadow-md hover:shadow-lg whitespace-nowrap">献立を決める</button>
+            <!-- Tab: 今週の献立 -->
+            <div id="tab-content-plan" class="tab-content active">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 mb-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                        <h2 class="text-2xl font-bold text-slate-800 mb-2 sm:mb-0">今週の献立</h2>
+                        <div class="flex gap-2">
+                            <button id="copy-week-plan-button" class="button-secondary"><i class="fas fa-copy mr-2"></i>コピー</button>
+                            <button id="generate-button" class="button-primary"><i class="fas fa-random mr-2"></i>献立を決める</button>
                         </div>
                     </div>
-                    <div id="week-plan" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"></div>
-                </div>
-                 <div id="shopping-list-container" class="card mt-8 hidden">
-                    <h2 class="text-2xl font-semibold mb-5 border-b pb-3 text-slate-800">お買い物リスト</h2>
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="add-ingredient-input" placeholder="材料を追加..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                        <button id="add-ingredient-button" class="bg-indigo-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-indigo-600 active:scale-95 transition-all duration-150 shadow-md hover:shadow-lg whitespace-nowrap">追加</button>
+                    <div id="week-plan" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Weekly plan will be rendered here -->
                     </div>
-                    <div id="shopping-list" class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2"></div>
+                </div>
+                 <!-- お買い物リスト -->
+                <div id="shopping-list-container" class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 mb-6 hidden">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">お買い物リスト</h2>
+                    <div id="shopping-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 mb-4">
+                        <!-- Shopping list items will be rendered here -->
+                    </div>
+                    <div class="flex gap-2 mt-4 pt-4 border-t border-slate-200">
+                        <input type="text" id="add-ingredient-input" placeholder="材料を追加" class="input-field flex-grow">
+                        <button id="add-ingredient-button" class="button-secondary">追加</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Tab Content: Register Menu -->
+            <!-- Tab: 献立を登録 -->
             <div id="tab-content-register" class="tab-content">
-                <div class="card max-w-2xl mx-auto">
-                    <h2 class="text-2xl font-semibold mb-5 border-b pb-3 text-slate-800">献立セットを登録</h2>
-                    <div id="menu-form" class="space-y-4">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4">献立セットを登録</h2>
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">献立 (一行に一品)</label>
-                            <textarea id="menu-input" placeholder="例：&#10;オムライス&#10;サラダ&#10;コンソメスープ" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
+                            <label for="menu-input" class="label-text">献立 (一行に一品)</label>
+                            <textarea id="menu-input" rows="3" class="input-field" placeholder="オムライス&#10;サラダ&#10;コンソメスープ"></textarea>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">材料 (一行に一つ)</label>
-                            <textarea id="ingredients-input" placeholder="例：&#10;卵&#10;鶏肉&#10;玉ねぎ" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
+                            <label for="ingredients-input" class="label-text">材料 (一行に一つ)</label>
+                            <textarea id="ingredients-input" rows="5" class="input-field" placeholder="卵&#10;鶏肉&#10;米"></textarea>
+                        </div>
+                         <div>
+                            <label for="memo-input" class="label-text">メモ</label>
+                            <textarea id="memo-input" rows="3" class="input-field" placeholder="調理のポイントや感想など"></textarea>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">タグ</label>
-                            <div id="tags-container" class="flex flex-wrap gap-2">
+                            <label for="url-input" class="label-text">レシピURL</label>
+                            <input type="url" id="url-input" class="input-field" placeholder="https://example.com">
+                        </div>
+                        <div>
+                            <span class="label-text">タグ (複数選択可)</span>
+                            <div id="tags-container" class="flex flex-wrap gap-2 mt-2">
                                 <button class="tag-select-button" data-tag="和食">和食</button>
                                 <button class="tag-select-button" data-tag="中華">中華</button>
                                 <button class="tag-select-button" data-tag="洋食">洋食</button>
-                                <button class="tag-select-button" data-tag="麺類">麺類</button>
                                 <button class="tag-select-button" data-tag="定番">定番</button>
+                                <button class="tag-select-button" data-tag="麺類">麺類</button>
                                 <button class="tag-select-button" data-tag="月1">月1</button>
                             </div>
                         </div>
-                         <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">献立タイプ</label>
-                            <div id="meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2">
-                                <label class="flex items-center"><input type="radio" name="mealType" value="normal" class="mr-1" checked> 通常</label>
-                                <label class="flex items-center"><input type="radio" name="mealType" value="bento" class="mr-1"> お弁当OK</label>
-                                <label class="flex items-center"><input type="radio" name="mealType" value="weekend" class="mr-1"> 週末向け</label>
+                        <div>
+                            <span class="label-text">献立タイプ</span>
+                            <div id="meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+                                <label class="radio-label"><input type="radio" name="mealType" value="normal" checked> 通常</label>
+                                <label class="radio-label"><input type="radio" name="mealType" value="bento"> お弁当OK</label>
+                                <label class="radio-label"><input type="radio" name="mealType" value="weekend"> 週末向け</label>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-600 mb-1">レシピURL</label>
-                            <input type="url" id="url-input" placeholder="https://example.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                        </div>
-                        <button id="add-button" class="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 active:scale-95 transition-all duration-150 font-semibold shadow-md hover:shadow-lg">登録する</button>
+                        <button id="add-button" class="button-primary w-full">登録する</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab Content: Menu List -->
+            <!-- Tab: 登録リスト -->
             <div id="tab-content-list" class="tab-content">
-                <div class="card">
-                     <h2 class="text-2xl font-semibold mb-5 border-b pb-3 text-slate-800">登録リスト</h2>
-                     <div class="mb-4">
-                        <input type="text" id="search-input" placeholder="献立名やタグで検索..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
-                     </div>
-                    <div id="menu-list-container" class="space-y-4 max-h-[65vh] overflow-y-auto pr-3"></div>
+                <div class="mb-4">
+                    <input type="text" id="search-input" class="input-field w-full" placeholder="献立名やタグで検索...">
+                </div>
+                <div id="menu-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Menu list will be rendered here -->
                 </div>
             </div>
         </main>
@@ -106,65 +111,88 @@
     <!-- Edit Modal -->
     <div id="edit-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-2xl font-semibold mb-5 border-b pb-3 text-slate-800">献立を編集</h2>
-            <div id="edit-menu-form" class="space-y-4">
-                <input type="hidden" id="edit-id-input">
+            <h3 class="text-2xl font-bold text-slate-800 mb-4">献立を編集</h3>
+            <input type="hidden" id="edit-id-input">
+            <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">献立 (一行に一品)</label>
-                    <textarea id="edit-menu-input" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
+                    <label for="edit-menu-input" class="label-text">献立</label>
+                    <textarea id="edit-menu-input" rows="3" class="input-field"></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">材料 (一行に一つ)</label>
-                    <textarea id="edit-ingredients-input" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
+                    <label for="edit-ingredients-input" class="label-text">材料</label>
+                    <textarea id="edit-ingredients-input" rows="5" class="input-field"></textarea>
+                </div>
+                 <div>
+                    <label for="edit-memo-input" class="label-text">メモ</label>
+                    <textarea id="edit-memo-input" rows="3" class="input-field"></textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">タグ</label>
-                    <div id="edit-tags-container" class="flex flex-wrap gap-2">
+                    <label for="edit-url-input" class="label-text">レシピURL</label>
+                    <input type="url" id="edit-url-input" class="input-field">
+                </div>
+                <div>
+                    <span class="label-text">タグ</span>
+                    <div id="edit-tags-container" class="flex flex-wrap gap-2 mt-2">
                         <button class="tag-select-button" data-tag="和食">和食</button>
                         <button class="tag-select-button" data-tag="中華">中華</button>
                         <button class="tag-select-button" data-tag="洋食">洋食</button>
-                        <button class="tag-select-button" data-tag="麺類">麺類</button>
                         <button class="tag-select-button" data-tag="定番">定番</button>
+                        <button class="tag-select-button" data-tag="麺類">麺類</button>
                         <button class="tag-select-button" data-tag="月1">月1</button>
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">献立タイプ</label>
-                    <div id="edit-meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2">
-                        <label class="flex items-center"><input type="radio" name="editMealType" value="normal" class="mr-1"> 通常</label>
-                        <label class="flex items-center"><input type="radio" name="editMealType" value="bento" class="mr-1"> お弁当OK</label>
-                        <label class="flex items-center"><input type="radio" name="editMealType" value="weekend" class="mr-1"> 週末向け</label>
+                    <span class="label-text">献立タイプ</span>
+                     <div id="edit-meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+                        <label class="radio-label"><input type="radio" name="editMealType" value="normal"> 通常</label>
+                        <label class="radio-label"><input type="radio" name="editMealType" value="bento"> お弁当OK</label>
+                        <label class="radio-label"><input type="radio" name="editMealType" value="weekend"> 週末向け</label>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">レシピURL</label>
-                    <input type="url" id="edit-url-input" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                <div class="flex justify-end gap-2 mt-6">
+                    <button id="cancel-edit-button" class="button-secondary">キャンセル</button>
+                    <button id="save-edit-button" class="button-primary">保存する</button>
                 </div>
             </div>
-            <div class="flex justify-end gap-4 mt-6">
-                <button id="cancel-edit-button" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition">キャンセル</button>
-                <button id="save-edit-button" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">保存する</button>
+        </div>
+    </div>
+    
+    <!-- Memo Modal -->
+    <div id="memo-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-slate-800">メモ</h3>
+                <button id="close-memo-button" class="icon-button text-slate-500 hover:text-red-600">&times;</button>
             </div>
+            <div id="memo-content" class="bg-slate-50 p-4 rounded-md whitespace-pre-wrap text-slate-700"></div>
         </div>
     </div>
 
-    <!-- Settings Modal for Data Management -->
+
+    <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-2xl font-semibold mb-5 border-b pb-3 text-slate-800">データ管理</h2>
-            <p class="text-slate-600 mb-4">登録した献立リストをファイルに保存したり、ファイルから読み込んだりできます。</p>
-            <div class="grid grid-cols-2 gap-4">
-                <button id="export-button" class="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition">エクスポート</button>
-                <label for="import-file" class="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition text-center cursor-pointer">インポート</label>
-                <input type="file" id="import-file" class="hidden" accept=".json">
+            <div class="flex justify-between items-center mb-4">
+                 <h3 class="text-2xl font-bold text-slate-800">設定</h3>
+                 <button id="close-settings-button" class="icon-button text-slate-500 hover:text-red-600">&times;</button>
             </div>
-             <div class="flex justify-end mt-6">
-                <button id="close-settings-button" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition">閉じる</button>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-bold text-slate-600 mb-2">データのエクスポート</h4>
+                    <p class="text-sm text-slate-500 mb-2">登録した献立データをファイルとして保存します。</p>
+                    <button id="export-button" class="button-secondary w-full">エクスポート</button>
+                </div>
+                <div>
+                    <h4 class="font-bold text-slate-600 mb-2">データのインポート</h4>
+                     <p class="text-sm text-slate-500 mb-2">ファイルから献立データを読み込みます。現在のデータは上書きされます。</p>
+                    <input type="file" id="import-file" class="hidden">
+                    <label for="import-file" class="button-secondary w-full text-center cursor-pointer">ファイルを選択</label>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Message Box (Moved outside of tabs) -->
+    
+    <!-- Message Box -->
     <div id="message-box" class="message-box"></div>
 
     <script src="script.js"></script>
