@@ -241,78 +241,69 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let newPlan = [];
         let available = [...candidatePool];
-        let mazegohanCount = 0;
-        let menruiCount = 0;
         const days = 7;
 
-        const isSpecial = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
-        const isMazegohan = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯'));
         const getPrimaryCategory = m => {
             if (!m || !m.tags) return 'other';
-            if (m.tags.includes('和食')) return 'japanese';
-            if (m.tags.includes('中華')) return 'chinese';
-            if (m.tags.includes('洋食')) return 'western';
-            if (m.tags.includes('麺類')) return 'noodles';
-            return 'other';
+            const categories = ['和食', '中華', '洋食', '麺類', '定番'];
+            return categories.find(cat => m.tags.includes(cat)) || 'other';
         };
 
-        for (let i = 0; i < days; i++) {
-            if (available.length === 0) {
-                showMessage("献立の候補がなくなりました。同じ献立が使われる可能性があります。", true);
-                available = [...menus]; 
-            }
-            
-            let pool = [...available];
-            const prev = i > 0 ? newPlan[i - 1] : null;
-            let selected = null;
-            let specialFollowUpChosen = false;
+        const generateDayMenu = (dayIndex, currentPlan, availableMenus) => {
+            let pool = [...availableMenus];
+            const prev = dayIndex > 0 ? currentPlan[dayIndex - 1] : null;
 
+            // Apply day-of-week meal type rules
+            if (dayIndex <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
+            if (dayIndex <= 2) {
+                const bentoPool = pool.filter(m => m.mealType === 'bento');
+                if (bentoPool.length > 0) pool = bentoPool;
+            }
+
+            // Apply weekly limit rules
+            const mazegohanCount = currentPlan.filter(m => m && m.dishes.some(d => d.includes('混ぜご飯'))).length;
+            const menruiCount = currentPlan.filter(m => m && m.tags.includes('麺類')).length;
+            if (menruiCount >= 1) {
+                const filtered = pool.filter(m => !m.tags.includes('麺類'));
+                if (filtered.length > 0) pool = filtered;
+            }
+            if (mazegohanCount >= 2) {
+                const filtered = pool.filter(m => !m.dishes.some(d => d.includes('混ぜご飯')));
+                if (filtered.length > 0) pool = filtered;
+            }
+
+            // Apply category continuity rule
+            const isSpecial = m => m && m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
+            let specialFollowUpChosen = false;
+            
             if (prev && isSpecial(prev)) {
-                let specialFollowUpPool = pool.filter(isSpecial);
+                const specialFollowUpPool = pool.filter(isSpecial);
                 if (specialFollowUpPool.length > 0) {
-                    selected = specialFollowUpPool[Math.floor(Math.random() * specialFollowUpPool.length)];
+                    pool = specialFollowUpPool;
                     specialFollowUpChosen = true;
                 }
             }
-
-            if (!specialFollowUpChosen) {
-                if (i <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
-                if (i <= 2) {
-                    const bentoPool = pool.filter(m => m.mealType === 'bento');
-                    if (bentoPool.length > 0) pool = bentoPool;
+            
+            if (!specialFollowUpChosen && prev) {
+                const prevCategory = getPrimaryCategory(prev);
+                if (prevCategory !== 'other') {
+                    const filtered = pool.filter(m => getPrimaryCategory(m) !== prevCategory);
+                    if (filtered.length > 0) pool = filtered;
                 }
-                if (menruiCount >= 1) {
-                    const filteredPool = pool.filter(m => !m.tags.includes('麺類'));
-                    if(filteredPool.length > 0) pool = filteredPool;
-                }
-                if (mazegohanCount >= 2) {
-                     const filteredPool = pool.filter(m => !isMazegohan(m));
-                     if(filteredPool.length > 0) pool = filteredPool;
-                }
-                if (prev) {
-                    const prevCategory = getPrimaryCategory(prev);
-                    if (prevCategory !== 'other') {
-                        const categoryFilteredPool = pool.filter(m => getPrimaryCategory(m) !== prevCategory);
-                        if (categoryFilteredPool.length > 0) pool = categoryFilteredPool;
-                    }
-                }
-                if (pool.length === 0) {
-                    pool = [...available];
-                    if (menruiCount >= 1) pool = pool.filter(m => !m.tags.includes('麺類'));
-                    if (mazegohanCount >= 2) pool = pool.filter(m => !isMazegohan(m));
-                    if (pool.length === 0) pool = [...available];
-                }
-                selected = pool[Math.floor(Math.random() * pool.length)];
             }
 
+            if (pool.length === 0) pool = [...availableMenus];
+            
+            return pool[Math.floor(Math.random() * pool.length)];
+        };
+
+        for (let i = 0; i < days; i++) {
+            const selected = generateDayMenu(i, newPlan, available);
             if (!selected) {
-                showMessage(`献立の候補が見つかりませんでした(${i + 1}日目)。登録内容を確認してください。`);
+                 showMessage(`献立の候補が見つかりませんでした(${i + 1}日目)。ルールが厳しすぎる可能性があります。`);
                 return;
             }
-
             newPlan.push(selected);
-            if (isMazegohan(selected)) mazegohanCount++;
-            if (selected.tags.includes('麺類')) menruiCount++;
             available = available.filter(m => m.id !== selected.id);
         }
 
@@ -390,30 +381,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const prevMenu = dayIndex > 0 ? currentPlan[dayIndex - 1] : null;
-        const nextMenu = dayIndex < 6 ? currentPlan[dayIndex + 1] : null;
-        const isMazegohan = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯'));
         const getPrimaryCategory = m => {
             if (!m || !m.tags) return 'other';
-            if (m.tags.includes('和食')) return 'japanese';
-            if (m.tags.includes('中華')) return 'chinese';
-            if (m.tags.includes('洋食')) return 'western';
-            if (m.tags.includes('麺類')) return 'noodles';
-            return 'other';
+            const categories = ['和食', '中華', '洋食', '麺類', '定番'];
+            return categories.find(cat => m.tags.includes(cat)) || 'other';
         };
 
         let pool = [...candidatePool];
+        const prevMenu = dayIndex > 0 ? currentPlan[dayIndex - 1] : null;
+        const nextMenu = dayIndex < 6 ? currentPlan[dayIndex + 1] : null;
+
+        // Apply day-of-week meal type rules
         if (dayIndex <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
         if (dayIndex <= 2) {
             const bentoPool = pool.filter(m => m.mealType === 'bento');
             if (bentoPool.length > 0) pool = bentoPool;
         }
 
-        const mazegohanCount = currentPlan.filter((m, i) => i !== dayIndex && m && isMazegohan(m)).length;
+        // Apply weekly limit rules
+        const mazegohanCount = currentPlan.filter((m, i) => i !== dayIndex && m && m.dishes.some(d => d.includes('混ぜご飯'))).length;
         const menruiCount = currentPlan.filter((m, i) => i !== dayIndex && m && m.tags.includes('麺類')).length;
         if (menruiCount >= 1) pool = pool.filter(m => !m.tags.includes('麺類'));
-        if (mazegohanCount >= 2) pool = pool.filter(m => !isMazegohan(m));
+        if (mazegohanCount >= 2) pool = pool.filter(m => !m.dishes.some(d => d.includes('混ぜご飯')));
 
+        // Apply category continuity rule
         if (prevMenu) {
             const prevCategory = getPrimaryCategory(prevMenu);
             if (prevCategory !== 'other') {
