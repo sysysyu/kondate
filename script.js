@@ -12,8 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
         copyWeekPlanButton: getElem('copy-week-plan-button'),
         weekPlanContainer: getElem('week-plan'),
         messageBox: getElem('message-box'),
+        // Shopping List
         shoppingListContainer: getElem('shopping-list-container'),
         shoppingList: getElem('shopping-list'),
+        addIngredientInput: getElem('add-ingredient-input'),
+        addIngredientButton: getElem('add-ingredient-button'),
         // Register Form
         addButton: getElem('add-button'),
         menuInput: getElem('menu-input'),
@@ -46,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let weeklyPlan = [];
     let lastGeneratedMenus = [];
     let generationStats = { count: 0, lastMonthlyUsed: -Infinity };
+    let customShoppingItems = [];
+    let shoppingListState = {}; // { '卵': true, '鶏肉': false }
 
     // --- Utility Functions ---
     const showMessage = (msg, isError = true) => {
@@ -139,21 +144,25 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const renderShoppingList = () => {
-        if (weeklyPlan.length === 0) {
+        if (weeklyPlan.length === 0 && customShoppingItems.length === 0) {
             elements.shoppingListContainer.classList.add('hidden');
             return;
         }
-        const allIngredients = weeklyPlan.flatMap(menu => menu.ingredients || []);
-        const uniqueIngredients = [...new Set(allIngredients)].sort();
+
+        const generatedIngredients = weeklyPlan.flatMap(menu => menu.ingredients || []);
+        const allIngredients = [...new Set([...generatedIngredients, ...customShoppingItems])].sort();
         
-        if (uniqueIngredients.length === 0) {
-            elements.shoppingList.innerHTML = `<p class="text-slate-500 col-span-full">登録された材料はありません。</p>`;
+        if (allIngredients.length === 0) {
+            elements.shoppingList.innerHTML = `<p class="text-slate-500 col-span-full">材料はありません。</p>`;
         } else {
-            elements.shoppingList.innerHTML = uniqueIngredients.map(item => `
-                <label class="flex items-center space-x-2 text-slate-600">
-                    <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            elements.shoppingList.innerHTML = allIngredients.map(item => {
+                const isChecked = shoppingListState[item] || false;
+                return `
+                <label class="flex items-center space-x-2 text-slate-600 cursor-pointer">
+                    <input type="checkbox" data-item="${item}" ${isChecked ? 'checked' : ''} class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
                     <span>${item}</span>
-                </label>`).join('');
+                </label>`;
+            }).join('');
         }
         elements.shoppingListContainer.classList.remove('hidden');
     };
@@ -296,11 +305,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // d. Final selection from the filtered pool
                 if (pool.length === 0) {
-                    // Fallback if filters are too strict: reset pool and apply only essential weekly limits
                     pool = [...available];
                     if (menruiCount >= 1) pool = pool.filter(m => !m.tags.includes('麺類'));
                     if (mazegohanCount >= 2) pool = pool.filter(m => !isMazegohan(m));
-                    if (pool.length === 0) pool = [...available]; // Absolute fallback
+                    if (pool.length === 0) pool = [...available];
                 }
                 
                 selected = pool[Math.floor(Math.random() * pool.length)];
@@ -348,6 +356,29 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.clipboard.writeText(text)
             .then(() => showMessage("今週の献立をコピーしました。", false))
             .catch(() => showMessage("コピーに失敗しました。"));
+    };
+    
+    const handleAddIngredient = () => {
+        const newItem = elements.addIngredientInput.value.trim();
+        if (newItem) {
+            if (!customShoppingItems.includes(newItem)) {
+                customShoppingItems.push(newItem);
+                saveData('customShoppingItems', customShoppingItems);
+            }
+            renderShoppingList();
+            elements.addIngredientInput.value = '';
+        }
+    };
+    
+    const handleShoppingListCheck = (e) => {
+        const checkbox = e.target;
+        if (checkbox.type === 'checkbox') {
+            const item = checkbox.dataset.item;
+            if (item) {
+                shoppingListState[item] = checkbox.checked;
+                saveData('shoppingListState', shoppingListState);
+            }
+        }
     };
 
     // --- Modal Logic ---
@@ -407,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleExport = () => {
-        const dataToExport = { menus, weeklyPlan, lastGeneratedMenus, generationStats };
+        const dataToExport = { menus, weeklyPlan, lastGeneratedMenus, generationStats, customShoppingItems, shoppingListState };
         const data = JSON.stringify(dataToExport);
         const blob = new Blob([data], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -426,15 +457,19 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = JSON.parse(event.target.result);
                 if (data && Array.isArray(data.menus)) {
-                    menus = data.menus.map(m => ({ ...m, mealType: m.mealType || 'normal' })); // Backward compatibility
+                    menus = data.menus.map(m => ({ ...m, mealType: m.mealType || 'normal' }));
                     weeklyPlan = data.weeklyPlan || [];
                     lastGeneratedMenus = data.lastGeneratedMenus || [];
                     generationStats = data.generationStats || { count: 0, lastMonthlyUsed: -Infinity };
-                    
+                    customShoppingItems = data.customShoppingItems || [];
+                    shoppingListState = data.shoppingListState || {};
+
                     saveData('menus', menus);
                     saveData('weeklyPlan', weeklyPlan);
                     saveData('lastGeneratedMenus', lastGeneratedMenus);
                     saveData('generationStats', generationStats);
+                    saveData('customShoppingItems', customShoppingItems);
+                    saveData('shoppingListState', shoppingListState);
 
                     renderMenuList();
                     renderWeekPlan();
@@ -473,13 +508,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     elements.exportButton.addEventListener('click', handleExport);
     elements.importFileInput.addEventListener('change', handleImport);
+    elements.addIngredientButton.addEventListener('click', handleAddIngredient);
+    elements.shoppingList.addEventListener('change', handleShoppingListCheck);
+
 
     // --- Initial Load ---
     const initializeApp = () => {
-        menus = loadData('menus', []).map(m => ({ ...m, mealType: m.mealType || 'normal' })); // Backward compatibility
+        menus = loadData('menus', []).map(m => ({ ...m, mealType: m.mealType || 'normal' }));
         weeklyPlan = loadData('weeklyPlan', []);
         lastGeneratedMenus = loadData('lastGeneratedMenus', []);
         generationStats = loadData('generationStats', { count: 0, lastMonthlyUsed: -Infinity });
+        customShoppingItems = loadData('customShoppingItems', []);
+        shoppingListState = loadData('shoppingListState', {});
 
         renderMenuList();
         renderWeekPlan();
