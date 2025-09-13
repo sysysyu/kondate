@@ -134,7 +134,12 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-xl font-bold text-indigo-700">${days[index]}曜日</h3>
-                    <button data-id="${menu.id}" class="edit-button button-secondary text-sm">編集</button>
+                    <div class="flex items-center gap-2">
+                        <button data-id="${menu.id}" class="edit-button button-secondary text-sm">編集</button>
+                        <button data-day-index="${index}" class="reroll-button icon-button text-slate-400 hover:text-indigo-600">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="flex flex-wrap gap-2 mb-3">${(menu.tags || []).map(tag => `<span class="tag-display">${tag}</span>`).join('')}</div>
                 <ul class="list-disc list-inside text-slate-700">${(menu.dishes || []).map(dish => `<li>${dish}</li>`).join('')}</ul>
@@ -262,7 +267,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let selected = null;
             let specialFollowUpChosen = false;
 
-            // --- PRIORITY 1: "混ぜご飯/豚汁" continuity rule (bypasses category check) ---
             if (prev && isSpecial(prev)) {
                 let specialFollowUpPool = pool.filter(isSpecial);
                 if (specialFollowUpPool.length > 0) {
@@ -271,18 +275,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // --- PRIORITY 2: Standard selection if special rule didn't apply ---
             if (!specialFollowUpChosen) {
-                // a. Apply day-of-week meal type rules
-                if (i <= 3) { // Mon-Thu: No weekend meals
-                    pool = pool.filter(m => m.mealType !== 'weekend');
-                }
-                if (i <= 2) { // Mon-Wed: Prefer bento meals
+                if (i <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
+                if (i <= 2) {
                     const bentoPool = pool.filter(m => m.mealType === 'bento');
                     if (bentoPool.length > 0) pool = bentoPool;
                 }
-
-                // b. Apply weekly limit rules
                 if (menruiCount >= 1) {
                     const filteredPool = pool.filter(m => !m.tags.includes('麺類'));
                     if(filteredPool.length > 0) pool = filteredPool;
@@ -291,26 +289,19 @@ document.addEventListener('DOMContentLoaded', () => {
                      const filteredPool = pool.filter(m => !isMazegohan(m));
                      if(filteredPool.length > 0) pool = filteredPool;
                 }
-
-                // c. Apply category continuity rule
                 if (prev) {
                     const prevCategory = getPrimaryCategory(prev);
                     if (prevCategory !== 'other') {
                         const categoryFilteredPool = pool.filter(m => getPrimaryCategory(m) !== prevCategory);
-                        if (categoryFilteredPool.length > 0) {
-                            pool = categoryFilteredPool;
-                        }
+                        if (categoryFilteredPool.length > 0) pool = categoryFilteredPool;
                     }
                 }
-                
-                // d. Final selection from the filtered pool
                 if (pool.length === 0) {
                     pool = [...available];
                     if (menruiCount >= 1) pool = pool.filter(m => !m.tags.includes('麺類'));
                     if (mazegohanCount >= 2) pool = pool.filter(m => !isMazegohan(m));
                     if (pool.length === 0) pool = [...available];
                 }
-                
                 selected = pool[Math.floor(Math.random() * pool.length)];
             }
 
@@ -322,11 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
             newPlan.push(selected);
             if (isMazegohan(selected)) mazegohanCount++;
             if (selected.tags.includes('麺類')) menruiCount++;
-            
             available = available.filter(m => m.id !== selected.id);
         }
 
-        // --- Update state ---
         generationStats.count++;
         if (newPlan.some(m => m.tags.includes('月1'))) {
             generationStats.lastMonthlyUsed = generationStats.count;
@@ -334,6 +323,12 @@ document.addEventListener('DOMContentLoaded', () => {
         saveData('generationStats', generationStats);
         weeklyPlan = newPlan;
         lastGeneratedMenus = [...newPlan];
+        
+        shoppingListState = {};
+        customShoppingItems = [];
+        saveData('shoppingListState', shoppingListState);
+        saveData('customShoppingItems', customShoppingItems);
+
         saveData('weeklyPlan', weeklyPlan);
         saveData('lastGeneratedMenus', lastGeneratedMenus);
         renderWeekPlan();
@@ -361,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleAddIngredient = () => {
         const newItem = elements.addIngredientInput.value.trim();
         if (newItem) {
-            if (!customShoppingItems.includes(newItem)) {
+            if (!customShoppingItems.includes(newItem) && !weeklyPlan.flatMap(m => m.ingredients || []).includes(newItem)) {
                 customShoppingItems.push(newItem);
                 saveData('customShoppingItems', customShoppingItems);
             }
@@ -380,6 +375,87 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
+
+    const handleRerollDay = (dayIndex) => {
+        const currentPlan = [...weeklyPlan];
+        const originalMenu = currentPlan[dayIndex];
+        if (!originalMenu) return;
+
+        let candidatePool = menus.filter(m => !currentPlan.some(planMenu => planMenu && planMenu.id === m.id));
+        if (candidatePool.length === 0) {
+            candidatePool = menus.filter(m => m.id !== originalMenu.id);
+        }
+        if (candidatePool.length === 0) {
+            showMessage("代わりの献立がありません。");
+            return;
+        }
+
+        const prevMenu = dayIndex > 0 ? currentPlan[dayIndex - 1] : null;
+        const nextMenu = dayIndex < 6 ? currentPlan[dayIndex + 1] : null;
+        const isMazegohan = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯'));
+        const getPrimaryCategory = m => {
+            if (!m || !m.tags) return 'other';
+            if (m.tags.includes('和食')) return 'japanese';
+            if (m.tags.includes('中華')) return 'chinese';
+            if (m.tags.includes('洋食')) return 'western';
+            if (m.tags.includes('麺類')) return 'noodles';
+            return 'other';
+        };
+
+        let pool = [...candidatePool];
+        if (dayIndex <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
+        if (dayIndex <= 2) {
+            const bentoPool = pool.filter(m => m.mealType === 'bento');
+            if (bentoPool.length > 0) pool = bentoPool;
+        }
+
+        const mazegohanCount = currentPlan.filter((m, i) => i !== dayIndex && m && isMazegohan(m)).length;
+        const menruiCount = currentPlan.filter((m, i) => i !== dayIndex && m && m.tags.includes('麺類')).length;
+        if (menruiCount >= 1) pool = pool.filter(m => !m.tags.includes('麺類'));
+        if (mazegohanCount >= 2) pool = pool.filter(m => !isMazegohan(m));
+
+        if (prevMenu) {
+            const prevCategory = getPrimaryCategory(prevMenu);
+            if (prevCategory !== 'other') {
+                const filtered = pool.filter(m => getPrimaryCategory(m) !== prevCategory);
+                if (filtered.length > 0) pool = filtered;
+            }
+        }
+        if (nextMenu) {
+            const nextCategory = getPrimaryCategory(nextMenu);
+            if (nextCategory !== 'other') {
+                const filtered = pool.filter(m => getPrimaryCategory(m) !== nextCategory);
+                if (filtered.length > 0) pool = filtered;
+            }
+        }
+
+        if (pool.length === 0) {
+            showMessage("条件に合う代わりの献立が見つかりませんでした。");
+            return;
+        }
+        
+        const newMenu = pool[Math.floor(Math.random() * pool.length)];
+        weeklyPlan[dayIndex] = newMenu;
+        saveData('weeklyPlan', weeklyPlan);
+        renderWeekPlan();
+        renderShoppingList();
+        showMessage(`${['月', '火', '水', '木', '金', '土', '日'][dayIndex]}曜日を決め直しました。`, false);
+    };
+
+    const handleWeekPlanClick = (e) => {
+        const button = e.target.closest('button');
+        if (!button) return;
+        if (button.classList.contains('edit-button')) {
+            const id = Number(button.dataset.id);
+            if (id) openEditModal(id);
+        } else if (button.classList.contains('reroll-button')) {
+            const dayIndex = Number(button.dataset.dayIndex);
+            if (dayIndex >= 0) {
+                handleRerollDay(dayIndex);
+            }
+        }
+    };
+
 
     // --- Modal Logic ---
     const openEditModal = (id) => {
@@ -495,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.searchInput.addEventListener('input', () => renderMenuList(elements.searchInput.value));
     elements.generateButton.addEventListener('click', handleGeneratePlan);
     elements.copyWeekPlanButton.addEventListener('click', handleCopyPlan);
-    elements.weekPlanContainer.addEventListener('click', handleMenuListClick);
+    elements.weekPlanContainer.addEventListener('click', handleWeekPlanClick);
     elements.settingsButton.addEventListener('click', () => elements.settingsModal.classList.remove('hidden'));
     elements.closeSettingsButton.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
     elements.saveEditButton.addEventListener('click', handleSaveEdit);
