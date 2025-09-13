@@ -148,17 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleTabClick = (e) => {
         const tab = e.target.closest('.tab-button');
         if (!tab) return;
-
-        // Update active state for tabs
         elements.tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-
-        // Update active state for tab contents
         elements.tabContents.forEach(c => c.classList.remove('active'));
-        const activeContent = getElem(`tab-content-${tab.dataset.tab}`);
-        if (activeContent) {
-            activeContent.classList.add('active');
-        }
+        getElem(`tab-content-${tab.dataset.tab}`).classList.add('active');
     };
 
     const handleAddMenu = () => {
@@ -186,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = e.target.closest('button');
         if (!button) return;
         const id = Number(button.dataset.id);
-        if (!id) return; // Ignore clicks on buttons without a data-id
+        if (!id) return;
 
         if (button.classList.contains('delete-button')) {
             menus = menus.filter(menu => menu.id !== id);
@@ -204,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let candidatePool = menus.filter(menu => !lastGeneratedMenus.some(last => last.id === menu.id));
+        let candidatePool = menus.filter(menu => !lastGeneratedMenus.some(last => last && last.id === menu.id));
         if (candidatePool.length < 7) {
             showMessage("新しい献立が足りないため、全ての献立から選び直します。", false);
             candidatePool = [...menus];
@@ -213,38 +206,64 @@ document.addEventListener('DOMContentLoaded', () => {
         let newPlan = [];
         let available = [...candidatePool];
         let mazegohanCount = 0;
+        const days = 7;
 
-        const isSpecial = m => m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
-        const isMazegohan = m => m.dishes.some(d => d.includes('混ぜご飯'));
+        const isSpecial = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
+        const isMazegohan = m => m && m.dishes && m.dishes.some(d => d.includes('混ぜご飯'));
         const getCat = m => {
+            if (!m || !m.tags) return 'other';
             if (m.tags.includes('和食')) return 'japanese';
             if (m.tags.includes('中華')) return 'chinese';
             if (m.tags.includes('洋食')) return 'western';
             return 'other';
         };
 
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < days; i++) {
             if (available.length === 0) {
-                showMessage("献立候補が尽きました。ユニークな献立が足りない可能性があります。");
-                return;
+                showMessage("献立の候補がなくなりました。同じ献立が使われる可能性があります。", true);
+                available = [...menus]; // Safeguard: Refill from the master list
             }
+            
             let pool = [...available];
             const prev = i > 0 ? newPlan[i - 1] : null;
             const prev2 = i > 1 ? newPlan[i - 2] : null;
 
-            if (mazegohanCount >= 2) pool = pool.filter(m => !isMazegohan(m));
+            // --- Apply filters progressively ---
+            // Each filter is only applied if it doesn't result in an empty list.
+
+            // Rule 1: "混ぜご飯" or "豚汁" must be followed by a similar dish if possible.
             if (prev && isSpecial(prev)) {
                 const specialPool = pool.filter(isSpecial);
                 if (specialPool.length > 0) pool = specialPool;
-            } else if (prev && prev2 && getCat(prev) !== 'other' && getCat(prev) === getCat(prev2)) {
+            }
+
+            // Rule 2: Limit "混ぜご飯" to 2 times a week.
+            if (mazegohanCount >= 2) {
+                const nonMazegohanPool = pool.filter(m => !isMazegohan(m));
+                if (nonMazegohanPool.length > 0) pool = nonMazegohanPool;
+            }
+            
+            // Rule 3: Avoid 3 consecutive days of the same category.
+            if (prev && prev2 && getCat(prev) !== 'other' && getCat(prev) === getCat(prev2)) {
                 const balancedPool = pool.filter(m => getCat(m) !== getCat(prev));
                 if (balancedPool.length > 0) pool = balancedPool;
             }
-            if (pool.length === 0) pool = [...available]; // Fallback
-
+            
+            // --- Select a menu ---
+            if (pool.length === 0) { // Ultimate fallback
+                 pool = [...available];
+            }
+            
             const selected = pool[Math.floor(Math.random() * pool.length)];
+
+            if (!selected) {
+                showMessage("予期せぬエラーで献立作成に失敗しました。");
+                return; // Exit the function to prevent further errors.
+            }
+
             newPlan.push(selected);
             if (isMazegohan(selected)) mazegohanCount++;
+            
             available = available.filter(m => m.id !== selected.id);
         }
 
@@ -263,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const days = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日', '日曜日'];
         const text = weeklyPlan.map((menu, i) => {
+            if(!menu) return `${days[i]}\n - 献立データなし`;
             const dishes = (menu.dishes || []).map(d => `・${d}`).join('\n');
             const url = menu.url ? `URL：${menu.url}` : '';
             return `${days[i]}\n${dishes}\n${url}`.trim();
@@ -311,8 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         saveData('menus', menus);
-        // Check if this menu is in the current weekly plan and update it
-        const planIndex = weeklyPlan.findIndex(m => m.id === id);
+        const planIndex = weeklyPlan.findIndex(m => m && m.id === id);
         if (planIndex !== -1) {
             weeklyPlan[planIndex] = menus[menuIndex];
             saveData('weeklyPlan', weeklyPlan);
@@ -374,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.searchInput.addEventListener('input', () => renderMenuList(elements.searchInput.value));
     elements.generateButton.addEventListener('click', handleGeneratePlan);
     elements.copyWeekPlanButton.addEventListener('click', handleCopyPlan);
-    elements.weekPlanContainer.addEventListener('click', handleMenuListClick); // For edit button in week plan
+    elements.weekPlanContainer.addEventListener('click', handleMenuListClick);
     
     // Modals
     elements.settingsButton.addEventListener('click', () => elements.settingsModal.classList.remove('hidden'));
@@ -384,14 +403,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Tag Selection
     elements.tagsContainer.addEventListener('click', e => {
-        if (e.target.classList.contains('tag-select-button')) {
-            e.target.classList.toggle('active');
-        }
+        if (e.target.classList.contains('tag-select-button')) e.target.classList.toggle('active');
     });
     elements.editTagsContainer.addEventListener('click', e => {
-        if (e.target.classList.contains('tag-select-button')) {
-            e.target.classList.toggle('active');
-        }
+        if (e.target.classList.contains('tag-select-button')) e.target.classList.toggle('active');
     });
     
     // Data Management
@@ -407,21 +422,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderWeekPlan();
         renderShoppingList();
         
-        // Ensure the first tab and its content are active on load
-        elements.tabs.forEach((tab, index) => {
-            if (index === 0) {
-                tab.classList.add('active');
-            } else {
-                tab.classList.remove('active');
-            }
-        });
-        elements.tabContents.forEach((content, index) => {
-            if (index === 0) {
-                content.classList.add('active');
-            } else {
-                content.classList.remove('active');
-            }
-        });
+        elements.tabs.forEach((tab, index) => tab.classList.toggle('active', index === 0));
+        elements.tabContents.forEach((content, index) => content.classList.toggle('active', index === 0));
     };
 
     initializeApp();
