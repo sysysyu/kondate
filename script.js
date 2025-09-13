@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element Cache ---
     const getElem = (id) => document.getElementById(id);
-    const querySel = (selector) => document.querySelector(selector);
     const querySelAll = (selector) => document.querySelectorAll(selector);
 
     const elements = {
@@ -21,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addButton: getElem('add-button'),
         menuInput: getElem('menu-input'),
         ingredientsInput: getElem('ingredients-input'),
+        memoInput: getElem('memo-input'),
         tagsContainer: getElem('tags-container'),
         mealTypeContainer: getElem('meal-type-container'),
         urlInput: getElem('url-input'),
@@ -32,11 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
         editIdInput: getElem('edit-id-input'),
         editMenuInput: getElem('edit-menu-input'),
         editIngredientsInput: getElem('edit-ingredients-input'),
+        editMemoInput: getElem('edit-memo-input'),
         editTagsContainer: getElem('edit-tags-container'),
         editMealTypeContainer: getElem('edit-meal-type-container'),
         editUrlInput: getElem('edit-url-input'),
         saveEditButton: getElem('save-edit-button'),
         cancelEditButton: getElem('cancel-edit-button'),
+        // Memo Modal
+        memoModal: getElem('memo-modal'),
+        memoContent: getElem('memo-content'),
+        closeMemoButton: getElem('close-memo-button'),
         // Settings Modal
         settingsModal: getElem('settings-modal'),
         closeSettingsButton: getElem('close-settings-button'),
@@ -50,16 +55,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastGeneratedMenus = [];
     let generationStats = { count: 0, lastMonthlyUsed: -Infinity };
     let customShoppingItems = [];
-    let shoppingListState = {}; // { '卵': true, '鶏肉': false }
-    let messageTimer = null; // メッセージ表示用のタイマーID
+    let shoppingListState = {}; 
+    let messageTimer = null; 
 
     // --- Utility Functions ---
     const showMessage = (msg, isError = true) => {
-        clearTimeout(messageTimer); // 既存のタイマーをクリア
+        clearTimeout(messageTimer);
         elements.messageBox.textContent = msg;
         elements.messageBox.className = 'message-box';
         elements.messageBox.classList.add(isError ? 'error' : 'success', 'show');
-        messageTimer = setTimeout(() => { // 新しいタイマーを設定
+        messageTimer = setTimeout(() => {
             elements.messageBox.classList.remove('show');
         }, 3000);
     };
@@ -71,8 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedData) {
             try {
                 const parsed = JSON.parse(savedData);
-                if (typeof parsed === 'object' && parsed !== null) return parsed;
-                return defaultValue;
+                return (typeof parsed === 'object' && parsed !== null) ? parsed : defaultValue;
             } catch (e) {
                 console.error(`Error parsing data for key "${key}":`, e);
                 return defaultValue;
@@ -81,12 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return defaultValue;
     };
     
-    // Function to ensure all menus have necessary properties (ID, mealType)
     const sanitizeMenus = (menuArray) => {
         return menuArray.map((m, index) => ({
             ...m,
-            id: m.id || Date.now() + index, // Assign a unique ID if missing
-            mealType: m.mealType || 'normal' // Assign default mealType if missing
+            id: m.id || Date.now() + index,
+            mealType: m.mealType || 'normal',
+            memo: m.memo || '',
         }));
     };
 
@@ -116,6 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 mealTypeBadge = `<span class="meal-type-badge bg-purple-100 text-purple-800">週末向け</span>`;
             }
 
+            const links = [
+                menu.url ? `<a href="${menu.url}" target="_blank" class="recipe-link">レシピを見る</a>` : '',
+                menu.memo ? `<a href="#" data-id="${menu.id}" class="memo-link">メモを見る</a>` : ''
+            ].filter(Boolean).join('<span class="mx-2 text-slate-300">|</span>');
+
             card.innerHTML = `
                 <div>
                     <div class="flex flex-wrap gap-2 mb-3">
@@ -123,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${mealTypeBadge}
                     </div>
                     <ul class="list-disc list-inside text-slate-700 mb-3">${menu.dishes.map(dish => `<li>${dish}</li>`).join('')}</ul>
-                    ${menu.url ? `<a href="${menu.url}" target="_blank" class="recipe-link">レシピを見る</a>` : ''}
+                    <div class="mt-2">${links}</div>
                 </div>
                 <div class="flex justify-end gap-2 mt-4">
                     <button data-id="${menu.id}" class="edit-button button-secondary">編集</button>
@@ -144,6 +153,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!menu) return;
             const card = document.createElement('div');
             card.className = 'bg-white p-5 rounded-lg shadow-md border border-slate-200';
+             const links = [
+                menu.url ? `<a href="${menu.url}" target="_blank" class="recipe-link">レシピを見る</a>` : '',
+                menu.memo ? `<a href="#" data-id="${menu.id}" class="memo-link">メモを見る</a>` : ''
+            ].filter(Boolean).join('<span class="mx-2 text-slate-300">|</span>');
+
             card.innerHTML = `
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-xl font-bold text-indigo-700">${days[index]}曜日</h3>
@@ -156,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="flex flex-wrap gap-2 mb-3">${(menu.tags || []).map(tag => `<span class="tag-display">${tag}</span>`).join('')}</div>
                 <ul class="list-disc list-inside text-slate-700">${(menu.dishes || []).map(dish => `<li>${dish}</li>`).join('')}</ul>
-                ${menu.url ? `<a href="${menu.url}" target="_blank" class="recipe-link">レシピを見る</a>` : ''}`;
+                <div class="mt-2">${links}</div>`;
             elements.weekPlanContainer.appendChild(card);
         });
     };
@@ -166,10 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.shoppingListContainer.classList.add('hidden');
             return;
         }
-
         const generatedIngredients = weeklyPlan.flatMap(menu => menu.ingredients || []);
         const allIngredients = [...new Set([...generatedIngredients, ...customShoppingItems])].sort();
-        
         if (allIngredients.length === 0) {
             elements.shoppingList.innerHTML = `<p class="text-slate-500 col-span-full">材料はありません。</p>`;
         } else {
@@ -198,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const handleAddMenu = () => {
         const dishes = elements.menuInput.value.split('\n').map(d => d.trim()).filter(Boolean);
         const ingredients = elements.ingredientsInput.value.split('\n').map(i => i.trim()).filter(Boolean);
+        const memo = elements.memoInput.value.trim();
         const url = elements.urlInput.value.trim();
         const tags = Array.from(elements.tagsContainer.querySelectorAll('.active')).map(b => b.dataset.tag);
         const mealType = elements.mealTypeContainer.querySelector('input[name="mealType"]:checked').value;
@@ -207,11 +220,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        menus.push({ id: Date.now(), dishes, ingredients, url, tags, mealType });
+        menus.push({ id: Date.now(), dishes, ingredients, memo, url, tags, mealType });
         saveData('menus', menus);
         renderMenuList();
         elements.menuInput.value = '';
         elements.ingredientsInput.value = '';
+        elements.memoInput.value = '';
         elements.urlInput.value = '';
         elements.tagsContainer.querySelectorAll('.active').forEach(b => b.classList.remove('active'));
         elements.mealTypeContainer.querySelector('input[value="normal"]').checked = true;
@@ -219,19 +233,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleMenuListClick = (e) => {
-        const button = e.target.closest('button');
-        if (!button) return;
-
-        const id = Number(button.dataset.id);
-        if (!id) return;
-
-        if (button.classList.contains('delete-button')) {
+        const target = e.target.closest('button, a');
+        if (!target) return;
+        
+        const id = Number(target.dataset.id);
+        if(!id) return;
+        
+        if (target.classList.contains('delete-button')) {
             menus = menus.filter(menu => menu.id !== id);
             saveData('menus', menus);
             renderMenuList(elements.searchInput.value);
             showMessage("献立を削除しました。", false);
-        } else if (button.classList.contains('edit-button')) {
+        } else if (target.classList.contains('edit-button')) {
             openEditModal(id);
+        } else if (target.classList.contains('memo-link')) {
+            e.preventDefault();
+            openMemoModal(id);
         }
     };
 
@@ -245,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!allowMonthly) {
             candidatePool = candidatePool.filter(m => !m.tags.includes('月1'));
         }
-
         if (candidatePool.length < 7) {
             const reason = !allowMonthly ? `(今週は「月1」献立が除外されています)` : '';
             showMessage(`日替わり献立には7種類以上の献立が必要です。${reason} (現在: ${candidatePool.length}種類)`);
@@ -254,8 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let newPlan = [];
         let available = [...candidatePool];
-        const days = 7;
-
         const getPrimaryCategory = m => {
             if (!m || !m.tags) return 'other';
             const categories = ['和食', '中華', '洋食', '麺類', '定番'];
@@ -266,14 +280,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let pool = [...availableMenus];
             const prev = dayIndex > 0 ? currentPlan[dayIndex - 1] : null;
 
-            // Apply day-of-week meal type rules
             if (dayIndex <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
             if (dayIndex <= 2) {
                 const bentoPool = pool.filter(m => m.mealType === 'bento');
                 if (bentoPool.length > 0) pool = bentoPool;
             }
-
-            // Apply weekly limit rules
             const mazegohanCount = currentPlan.filter(m => m && m.dishes.some(d => d.includes('混ぜご飯'))).length;
             const menruiCount = currentPlan.filter(m => m && m.tags.includes('麺類')).length;
             if (menruiCount >= 1) {
@@ -284,8 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const filtered = pool.filter(m => !m.dishes.some(d => d.includes('混ぜご飯')));
                 if (filtered.length > 0) pool = filtered;
             }
-
-            // Apply category continuity rule
             const isSpecial = m => m && m.dishes.some(d => d.includes('混ぜご飯') || d.includes('豚汁'));
             let specialFollowUpChosen = false;
             
@@ -296,7 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     specialFollowUpChosen = true;
                 }
             }
-            
             if (!specialFollowUpChosen && prev) {
                 const prevCategory = getPrimaryCategory(prev);
                 if (prevCategory !== 'other') {
@@ -306,14 +314,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (pool.length === 0) pool = [...availableMenus];
-            
             return pool[Math.floor(Math.random() * pool.length)];
         };
 
-        for (let i = 0; i < days; i++) {
+        for (let i = 0; i < 7; i++) {
             const selected = generateDayMenu(i, newPlan, available);
             if (!selected) {
-                 showMessage(`献立の候補が見つかりませんでした(${i + 1}日目)。ルールが厳しすぎる可能性があります。`);
+                showMessage(`献立の候補が見つかりませんでした(${i + 1}日目)。ルールが厳しすぎる可能性があります。`);
                 return;
             }
             newPlan.push(selected);
@@ -327,12 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
         saveData('generationStats', generationStats);
         weeklyPlan = newPlan;
         lastGeneratedMenus = [...newPlan];
-        
         shoppingListState = {};
         customShoppingItems = [];
         saveData('shoppingListState', shoppingListState);
         saveData('customShoppingItems', customShoppingItems);
-
         saveData('weeklyPlan', weeklyPlan);
         saveData('lastGeneratedMenus', lastGeneratedMenus);
         renderWeekPlan();
@@ -404,20 +409,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const prevMenu = dayIndex > 0 ? currentPlan[dayIndex - 1] : null;
         const nextMenu = dayIndex < 6 ? currentPlan[dayIndex + 1] : null;
 
-        // Apply day-of-week meal type rules
         if (dayIndex <= 3) pool = pool.filter(m => m.mealType !== 'weekend');
         if (dayIndex <= 2) {
             const bentoPool = pool.filter(m => m.mealType === 'bento');
             if (bentoPool.length > 0) pool = bentoPool;
         }
 
-        // Apply weekly limit rules
         const mazegohanCount = currentPlan.filter((m, i) => i !== dayIndex && m && m.dishes.some(d => d.includes('混ぜご飯'))).length;
         const menruiCount = currentPlan.filter((m, i) => i !== dayIndex && m && m.tags.includes('麺類')).length;
         if (menruiCount >= 1) pool = pool.filter(m => !m.tags.includes('麺類'));
         if (mazegohanCount >= 2) pool = pool.filter(m => !m.dishes.some(d => d.includes('混ぜご飯')));
 
-        // Apply category continuity rule
         if (prevMenu) {
             const prevCategory = getPrimaryCategory(prevMenu);
             if (prevCategory !== 'other') {
@@ -447,16 +449,23 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleWeekPlanClick = (e) => {
-        const button = e.target.closest('button');
-        if (!button) return;
-        if (button.classList.contains('edit-button')) {
-            const id = Number(button.dataset.id);
-            if (id) openEditModal(id);
-        } else if (button.classList.contains('reroll-button')) {
-            const dayIndex = Number(button.dataset.dayIndex);
-            if (dayIndex >= 0) {
-                handleRerollDay(dayIndex);
-            }
+        const target = e.target.closest('button, a');
+        if (!target) return;
+        
+        if (target.classList.contains('reroll-button')) {
+            const dayIndex = Number(target.dataset.dayIndex);
+            if (dayIndex >= 0) handleRerollDay(dayIndex);
+            return;
+        }
+        
+        const id = Number(target.dataset.id);
+        if(!id) return;
+        
+        if (target.classList.contains('edit-button')) {
+            openEditModal(id);
+        } else if (target.classList.contains('memo-link')) {
+            e.preventDefault();
+            openMemoModal(id);
         }
     };
 
@@ -468,17 +477,25 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.editIdInput.value = id;
         elements.editMenuInput.value = menu.dishes.join('\n');
         elements.editIngredientsInput.value = (menu.ingredients || []).join('\n');
+        elements.editMemoInput.value = menu.memo || '';
         elements.editUrlInput.value = menu.url || '';
         elements.editTagsContainer.querySelectorAll('.tag-select-button').forEach(btn => {
             btn.classList.toggle('active', menu.tags.includes(btn.dataset.tag));
         });
         const mealTypeInput = elements.editMealTypeContainer.querySelector(`input[value="${menu.mealType || 'normal'}"]`);
         if(mealTypeInput) mealTypeInput.checked = true;
-
         elements.editModal.classList.remove('hidden');
     };
-
     const closeEditModal = () => elements.editModal.classList.add('hidden');
+    
+    const openMemoModal = (id) => {
+        const menu = menus.find(m => m.id === id);
+        if (menu) {
+            elements.memoContent.textContent = menu.memo || 'メモはありません。';
+            elements.memoModal.classList.remove('hidden');
+        }
+    };
+    const closeMemoModal = () => elements.memoModal.classList.add('hidden');
 
     const handleSaveEdit = () => {
         const id = Number(elements.editIdInput.value);
@@ -498,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
             id,
             dishes,
             ingredients: elements.editIngredientsInput.value.split('\n').map(i => i.trim()).filter(Boolean),
+            memo: elements.editMemoInput.value.trim(),
             url: elements.editUrlInput.value.trim(),
             tags,
             mealType,
@@ -580,6 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.closeSettingsButton.addEventListener('click', () => elements.settingsModal.classList.add('hidden'));
     elements.saveEditButton.addEventListener('click', handleSaveEdit);
     elements.cancelEditButton.addEventListener('click', closeEditModal);
+    elements.closeMemoButton.addEventListener('click', closeMemoModal);
     elements.tagsContainer.addEventListener('click', e => {
         if (e.target.classList.contains('tag-select-button')) e.target.classList.toggle('active');
     });
@@ -590,7 +609,6 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.importFileInput.addEventListener('change', handleImport);
     elements.addIngredientButton.addEventListener('click', handleAddIngredient);
     elements.shoppingList.addEventListener('change', handleShoppingListCheck);
-
 
     // --- Initial Load ---
     const initializeApp = () => {
