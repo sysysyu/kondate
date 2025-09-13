@@ -1,154 +1,130 @@
 /* --- Base Styles & Fonts --- */
 body {
-    background-color: #f8fafc; /* slate-50 */
     font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    background-color: #f8fafc; /* slate-50 */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* --- Main Layout --- */
-.container {
-    animation: fadeIn 0.5s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- Card Style --- */
+/* --- Layout --- */
 .card {
     background-color: white;
-    border-radius: 0.75rem; /* 12px */
-    padding: 2rem; /* 32px */
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    padding: 2rem;
+    border-radius: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     border: 1px solid #e2e8f0; /* slate-200 */
 }
 
-/* --- Tab Navigation --- */
+/* --- Tabs --- */
 .tab-button {
-    padding: 0.75rem 1rem;
-    font-size: 0.8rem; /* Adjusted font size */
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #475569; /* slate-600 */
     border-bottom: 3px solid transparent;
     transition: all 0.2s ease-in-out;
-    white-space: nowrap; /* Prevent wrapping */
-    margin-bottom: -1px;
 }
-
 .tab-button:hover {
-    background-color: #f1f5f9; /* slate-100 */
     color: #1e293b; /* slate-800 */
 }
-
 .tab-button.active {
     color: #4f46e5; /* indigo-600 */
-    border-bottom-color: #4f46e5; /* indigo-600 */
+    border-bottom-color: #4f46e5;
 }
-
-/* --- Tab Content Visibility --- */
 .tab-content {
-    display: none; /* Hide inactive tabs by default */
+    display: none;
 }
-
 .tab-content.active {
-    display: block; /* Show the active tab */
-    animation: fadeIn 0.3s ease-in-out;
+    display: block;
 }
 
-/* --- Buttons --- */
+/* --- Forms & Buttons --- */
+.tag-select-button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #cbd5e1; /* slate-300 */
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.2s;
+    background-color: #f1f5f9; /* slate-100 */
+}
+.tag-select-button.active {
+    background-color: #e0e7ff; /* indigo-200 */
+    color: #3730a3; /* indigo-800 */
+    border-color: #a5b4fc; /* indigo-300 */
+    font-weight: 600;
+}
+.icon-button {
+    transition: transform 0.2s;
+}
+.icon-button:hover {
+    transform: rotate(15deg);
+}
+
 .button-secondary {
-    background-color: #e2e8f0; /* slate-200 */
-    color: #334155; /* slate-700 */
+    background-color: #e2e8f0;
+    color: #334155;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     font-weight: 600;
     transition: background-color 0.2s;
 }
 .button-secondary:hover {
-    background-color: #cbd5e1; /* slate-300 */
+    background-color: #cbd5e1;
 }
-
 .button-danger {
-    background-color: #ef4444; /* red-500 */
-    color: white;
+    background-color: #fee2e2;
+    color: #b91c1c;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     font-weight: 600;
     transition: background-color 0.2s;
 }
 .button-danger:hover {
-    background-color: #dc2626; /* red-600 */
+    background-color: #fecaca;
 }
 
-.icon-button {
-    transition: transform 0.2s;
-}
-.icon-button:hover {
-    transform: scale(1.1);
-}
-
-/* --- Tag Styles --- */
-.tag-select-button {
-    padding: 0.5rem 1rem;
-    border: 1px solid #cbd5e1; /* slate-300 */
-    border-radius: 9999px;
-    background-color: #f8fafc; /* slate-50 */
-    color: #475569; /* slate-600 */
-    font-weight: 500;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-.tag-select-button.active {
-    background-color: #4f46e5; /* indigo-600 */
-    color: white;
-    border-color: #4f46e5; /* indigo-600 */
-}
-
+/* --- Menu Cards --- */
 .tag-display {
-    background-color: #e0e7ff; /* indigo-100 */
-    color: #3730a3; /* indigo-800 */
-    font-size: 0.75rem;
-    font-weight: 600;
+    background-color: #eef2ff; /* indigo-100 */
+    color: #4338ca; /* indigo-700 */
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
-}
-
-/* --- Links --- */
-.recipe-link {
-    color: #0284c7; /* sky-600 */
-    text-decoration: underline;
+    font-size: 0.8rem;
     font-weight: 500;
-    word-break: break-all;
-    display: block;
-    margin-top: 0.75rem;
+}
+.recipe-link {
+    color: #4f46e5;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+    margin-top: 0.5rem;
+    display: inline-block;
+}
+.recipe-link:hover {
+    color: #3730a3;
+    text-decoration: underline;
 }
 
-/* --- Modal Styles --- */
+/* --- Modals --- */
 .modal-overlay {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
     display: flex;
-    align-items: center;
     justify-content: center;
-    z-index: 50;
-    animation: fadeIn 0.3s;
+    align-items: center;
+    z-index: 100;
 }
 .modal-content {
     background-color: white;
     padding: 2rem;
-    border-radius: 0.75rem;
+    border-radius: 1.5rem;
     width: 90%;
     max-width: 500px;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    animation: fadeIn 0.3s, slideUp 0.3s;
-}
-
-@keyframes slideUp {
-    from { transform: translateY(20px); }
-    to { transform: translateY(0); }
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
 /* --- Message Box --- */
@@ -156,20 +132,16 @@ body {
     position: fixed;
     bottom: 20px;
     left: 50%;
-    transform: translateX(-50%);
-    padding: 1rem 1.5rem;
-    border-radius: 0.5rem;
+    transform: translateX(-50%) translateY(100px);
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
     color: white;
     font-weight: 600;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
-    z-index: 100;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    transition: transform 0.3s ease-in-out;
+    z-index: 101;
 }
 .message-box.show {
-    opacity: 1;
-    visibility: visible;
     transform: translateX(-50%) translateY(0);
 }
 .message-box.success {
@@ -177,5 +149,19 @@ body {
 }
 .message-box.error {
     background-color: #ef4444; /* red-500 */
+}
+
+/* --- Meal Type Badge --- */
+.meal-type-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* --- Shopping List --- */
+#shopping-list label input:checked + span {
+    text-decoration: line-through;
+    color: #94a3b8; /* slate-400 */
 }
 
