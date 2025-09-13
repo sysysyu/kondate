@@ -57,7 +57,7 @@ body {
     transition: transform 0.2s;
 }
 .icon-button:hover {
-    transform: rotate(15deg);
+    transform: rotate(90deg);
 }
 
 .button-secondary {
