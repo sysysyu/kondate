@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let menus = [];
     let weeklyPlan = [];
     let lastGeneratedMenus = [];
+    let generationStats = { count: 0, lastMonthlyUsed: -Infinity };
 
     // --- Utility Functions ---
     const showMessage = (msg, isError = true) => {
@@ -55,12 +56,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Data Persistence ---
     const saveData = (key, data) => localStorage.setItem(key, JSON.stringify(data));
-    const loadData = (key, defaultValue = []) => {
+    const loadData = (key, defaultValue = {}) => {
         const savedData = localStorage.getItem(key);
         if (savedData) {
             try {
+                // Handle both array and object defaults
                 const parsed = JSON.parse(savedData);
-                return Array.isArray(parsed) ? parsed : defaultValue;
+                if (typeof parsed === 'object' && parsed !== null) {
+                    return parsed;
+                }
+                return defaultValue;
             } catch (e) {
                 console.error(`Error parsing data for key "${key}":`, e);
                 return defaultValue;
@@ -192,17 +197,28 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleGeneratePlan = () => {
-        if (menus.length < 7) {
-            showMessage(`日替わり献立には7種類以上の献立が必要です。(現在: ${menus.length}種類)`);
-            return;
-        }
-
+        // --- Rule setup ---
+        const allowMonthly = (generationStats.count - generationStats.lastMonthlyUsed) >= 4;
+        
+        // --- Pool creation ---
         let candidatePool = menus.filter(menu => !lastGeneratedMenus.some(last => last && last.id === menu.id));
         if (candidatePool.length < 7) {
             showMessage("新しい献立が足りないため、全ての献立から選び直します。", false);
             candidatePool = [...menus];
         }
 
+        // Apply "月1" filter
+        if (!allowMonthly) {
+            candidatePool = candidatePool.filter(m => !m.tags.includes('月1'));
+        }
+
+        if (candidatePool.length < 7) {
+            const baseMessage = `日替わり献立には7種類以上の献立が必要です。`;
+            const reason = !allowMonthly ? `(今週は「月1」献立が除外されています)` : '';
+            showMessage(`${baseMessage} ${reason} (現在: ${candidatePool.length}種類)`);
+            return;
+        }
+        
         let newPlan = [];
         let available = [...candidatePool];
         let mazegohanCount = 0;
@@ -229,41 +245,25 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < days; i++) {
             if (available.length === 0) {
                 showMessage("献立の候補がなくなりました。同じ献立が使われる可能性があります。", true);
-                available = [...menus]; // Safeguard: Refill from the master list
+                available = [...menus]; 
             }
             
             let pool = [...available];
             const prev = i > 0 ? newPlan[i - 1] : null;
 
             // --- Apply filters ---
+            if (menruiCount >= 1) pool = applyFilter(pool, m => !m.tags.includes('麺類'));
+            if (mazegohanCount >= 2) pool = applyFilter(pool, m => !isMazegohan(m));
 
-            // Hard constraint: Max 1 "麺類"
-            if (menruiCount >= 1) {
-                pool = applyFilter(pool, m => !m.tags.includes('麺類'));
-            }
-
-            // Hard constraint: Max 2 "混ぜご飯"
-            if (mazegohanCount >= 2) {
-                pool = applyFilter(pool, m => !isMazegohan(m));
-            }
-
-            // Strong suggestion: Avoid consecutive tags
             if (prev) {
                 const prevCategory = getPrimaryCategory(prev);
                 if (prevCategory !== 'other') {
                     pool = applyFilter(pool, m => getPrimaryCategory(m) !== prevCategory);
                 }
             }
-
-            // Strong suggestion: "混ぜご飯/豚汁" continuity
-            if (prev && isSpecial(prev)) {
-                pool = applyFilter(pool, isSpecial);
-            }
+            if (prev && isSpecial(prev)) pool = applyFilter(pool, isSpecial);
             
-            // --- Select a menu ---
-            if (pool.length === 0) { // Fallback if filters are too restrictive
-                 pool = [...available];
-            }
+            if (pool.length === 0) pool = [...available];
             
             const selected = pool[Math.floor(Math.random() * pool.length)];
 
@@ -278,6 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             available = available.filter(m => m.id !== selected.id);
         }
+
+        // --- Update state after successful generation ---
+        generationStats.count++;
+        if (newPlan.some(m => m.tags.includes('月1'))) {
+            generationStats.lastMonthlyUsed = generationStats.count;
+        }
+        saveData('generationStats', generationStats);
 
         weeklyPlan = newPlan;
         lastGeneratedMenus = [...newPlan];
@@ -357,7 +364,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handleExport = () => {
-        const data = JSON.stringify({ menus, weeklyPlan, lastGeneratedMenus });
+        const dataToExport = { menus, weeklyPlan, lastGeneratedMenus, generationStats };
+        const data = JSON.stringify(dataToExport);
         const blob = new Blob([data], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -378,9 +386,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     menus = data.menus;
                     weeklyPlan = data.weeklyPlan || [];
                     lastGeneratedMenus = data.lastGeneratedMenus || [];
+                    generationStats = data.generationStats || { count: 0, lastMonthlyUsed: -Infinity };
+                    
                     saveData('menus', menus);
                     saveData('weeklyPlan', weeklyPlan);
                     saveData('lastGeneratedMenus', lastGeneratedMenus);
+                    saveData('generationStats', generationStats);
+
                     renderMenuList();
                     renderWeekPlan();
                     renderShoppingList();
@@ -427,9 +439,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initial Load ---
     const initializeApp = () => {
-        menus = loadData('menus');
-        weeklyPlan = loadData('weeklyPlan');
-        lastGeneratedMenus = loadData('lastGeneratedMenus');
+        menus = loadData('menus', []);
+        weeklyPlan = loadData('weeklyPlan', []);
+        lastGeneratedMenus = loadData('lastGeneratedMenus', []);
+        generationStats = loadData('generationStats', { count: 0, lastMonthlyUsed: -Infinity });
+
         renderMenuList();
         renderWeekPlan();
         renderShoppingList();
