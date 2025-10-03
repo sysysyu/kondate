@@ -4,34 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>週間献立メーカー</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font Awesome (for icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-50 font-sans">
-    <div id="app" class="max-w-4xl mx-auto p-4 md:p-6">
-        <header class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-indigo-700">週間献立メーカー</h1>
-            <button id="settings-button" class="icon-button text-slate-500 hover:text-indigo-600">
-                <i class="fas fa-cog text-2xl"></i>
+<body class="text-slate-700">
+    <div id="app" class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">
+                <i class="fa-solid fa-utensils text-indigo-500"></i>
+                週間献立メーカー
+            </h1>
+            <button id="settings-button" class="text-slate-500 hover:text-indigo-600 transition-colors text-2xl" aria-label="設定">
+                <i class="fas fa-cog"></i>
             </button>
         </header>
 
-        <nav class="flex border-b border-slate-200 mb-6">
-            <button class="tab-button active" data-tab="plan">今週の献立</button>
-            <button class="tab-button" data-tab="register">献立を登録</button>
-            <button class="tab-button" data-tab="list">登録リスト</button>
+        <!-- Tabs -->
+        <nav class="mb-6">
+            <div class="border-b border-slate-200">
+                <div class="flex -mb-px space-x-4 sm:space-x-6">
+                    <button class="tab-button py-2 px-3 sm:px-4 text-sm sm:text-base font-medium border-b-2 transition-colors duration-200 text-slate-500 border-transparent" data-tab="plan">
+                        <i class="fa-solid fa-calendar-week mr-2"></i>今週の献立
+                    </button>
+                    <button class="tab-button py-2 px-3 sm:px-4 text-sm sm:text-base font-medium border-b-2 transition-colors duration-200 text-slate-500 border-transparent" data-tab="register">
+                        <i class="fa-solid fa-plus mr-2"></i>献立を登録
+                    </button>
+                    <button class="tab-button py-2 px-3 sm:px-4 text-sm sm:text-base font-medium border-b-2 transition-colors duration-200 text-slate-500 border-transparent" data-tab="list">
+                        <i class="fa-solid fa-list-ul mr-2"></i>登録リスト
+                    </button>
+                </div>
+            </div>
         </nav>
 
         <main>
             <!-- Tab: 今週の献立 -->
-            <div id="tab-content-plan" class="tab-content active">
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 mb-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                        <h2 class="text-2xl font-bold text-slate-800 mb-2 sm:mb-0">今週の献立</h2>
-                        <div class="flex gap-2">
-                            <button id="copy-week-plan-button" class="button-secondary"><i class="fas fa-copy mr-2"></i>コピー</button>
-                            <button id="generate-button" class="button-primary"><i class="fas fa-random mr-2"></i>献立を決める</button>
+            <div id="tab-content-plan" class="tab-content space-y-6">
+                <div class="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                        <h2 class="text-xl sm:text-2xl font-bold text-slate-800">今週の献立</h2>
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <button id="copy-week-plan-button" class="flex-1 sm:flex-none justify-center items-center py-2 px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"><i class="fas fa-copy mr-2"></i>コピー</button>
+                            <button id="generate-button" class="flex-1 sm:flex-none justify-center items-center py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition shadow-sm"><i class="fas fa-random mr-2"></i>献立を決める</button>
                         </div>
                     </div>
                     <div id="week-plan" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -39,59 +61,59 @@
                     </div>
                 </div>
                  <!-- お買い物リスト -->
-                <div id="shopping-list-container" class="bg-white p-6 rounded-xl shadow-lg border border-slate-200 mb-6 hidden">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-4">お買い物リスト</h2>
-                    <div id="shopping-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 mb-4">
+                <div id="shopping-list-container" class="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-slate-200 hidden">
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-4">お買い物リスト</h2>
+                    <div id="shopping-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-3 mb-4">
                         <!-- Shopping list items will be rendered here -->
                     </div>
                     <div class="flex gap-2 mt-4 pt-4 border-t border-slate-200">
-                        <input type="text" id="add-ingredient-input" placeholder="材料を追加" class="input-field flex-grow">
-                        <button id="add-ingredient-button" class="button-secondary">追加</button>
+                        <input type="text" id="add-ingredient-input" placeholder="材料を追加..." class="flex-grow w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <button id="add-ingredient-button" class="py-2 px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">追加</button>
                     </div>
                 </div>
             </div>
 
             <!-- Tab: 献立を登録 -->
             <div id="tab-content-register" class="tab-content">
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-4">献立セットを登録</h2>
-                    <div class="space-y-4">
+                <div class="max-w-2xl mx-auto bg-white p-5 sm:p-8 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-6">献立セットを登録</h2>
+                    <div class="space-y-6">
                         <div>
-                            <label for="menu-input" class="label-text">献立 (一行に一品)</label>
-                            <textarea id="menu-input" rows="3" class="input-field" placeholder="オムライス&#10;サラダ&#10;コンソメスープ"></textarea>
+                            <label for="menu-input" class="block text-sm font-medium text-slate-700 mb-1">献立 <span class="text-red-500">*</span> (一行に一品)</label>
+                            <textarea id="menu-input" rows="3" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="オムライス&#10;サラダ&#10;コンソメスープ"></textarea>
                         </div>
                         <div>
-                            <label for="ingredients-input" class="label-text">材料 (一行に一つ)</label>
-                            <textarea id="ingredients-input" rows="5" class="input-field" placeholder="卵&#10;鶏肉&#10;米"></textarea>
+                            <label for="ingredients-input" class="block text-sm font-medium text-slate-700 mb-1">材料 (一行に一つ)</label>
+                            <textarea id="ingredients-input" rows="5" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="卵&#10;鶏肉&#10;米"></textarea>
                         </div>
                          <div>
-                            <label for="memo-input" class="label-text">メモ</label>
-                            <textarea id="memo-input" rows="3" class="input-field" placeholder="調理のポイントや感想など"></textarea>
+                            <label for="memo-input" class="block text-sm font-medium text-slate-700 mb-1">メモ</label>
+                            <textarea id="memo-input" rows="3" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="調理のポイントや感想など"></textarea>
                         </div>
                         <div>
-                            <label for="url-input" class="label-text">レシピURL</label>
-                            <input type="url" id="url-input" class="input-field" placeholder="https://example.com">
+                            <label for="url-input" class="block text-sm font-medium text-slate-700 mb-1">レシピURL</label>
+                            <input type="url" id="url-input" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="https://example.com">
                         </div>
                         <div>
-                            <span class="label-text">タグ (複数選択可)</span>
-                            <div id="tags-container" class="flex flex-wrap gap-2 mt-2">
-                                <button class="tag-select-button" data-tag="和食">和食</button>
-                                <button class="tag-select-button" data-tag="中華">中華</button>
-                                <button class="tag-select-button" data-tag="洋食">洋食</button>
-                                <button class="tag-select-button" data-tag="定番">定番</button>
-                                <button class="tag-select-button" data-tag="麺類">麺類</button>
-                                <button class="tag-select-button" data-tag="月1">月1</button>
+                            <span class="block text-sm font-medium text-slate-700 mb-2">タグ <span class="text-red-500">*</span> (複数選択可)</span>
+                            <div id="tags-container" class="flex flex-wrap gap-2">
+                                <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="和食">和食</button>
+                                <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="中華">中華</button>
+                                <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="洋食">洋食</button>
+                                <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="定番">定番</button>
+                                <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="麺類">麺類</button>
+                                <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="月1">月1</button>
                             </div>
                         </div>
                         <div>
-                            <span class="label-text">献立タイプ</span>
-                            <div id="meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                                <label class="radio-label"><input type="radio" name="mealType" value="normal" checked> 通常</label>
-                                <label class="radio-label"><input type="radio" name="mealType" value="bento"> お弁当OK</label>
-                                <label class="radio-label"><input type="radio" name="mealType" value="weekend"> 週末向け</label>
+                            <span class="block text-sm font-medium text-slate-700 mb-2">献立タイプ</span>
+                            <div id="meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2">
+                                <label class="flex items-center space-x-2 text-slate-700 cursor-pointer"><input type="radio" name="mealType" value="normal" checked class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"><span>通常</span></label>
+                                <label class="flex items-center space-x-2 text-slate-700 cursor-pointer"><input type="radio" name="mealType" value="bento" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"><span>お弁当OK</span></label>
+                                <label class="flex items-center space-x-2 text-slate-700 cursor-pointer"><input type="radio" name="mealType" value="weekend" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"><span>週末向け</span></label>
                             </div>
                         </div>
-                        <button id="add-button" class="button-primary w-full">登録する</button>
+                        <button id="add-button" class="w-full py-2.5 px-5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition shadow-sm">登録する</button>
                     </div>
                 </div>
             </div>
@@ -99,7 +121,12 @@
             <!-- Tab: 登録リスト -->
             <div id="tab-content-list" class="tab-content">
                 <div class="mb-4">
-                    <input type="text" id="search-input" class="input-field w-full" placeholder="献立名やタグで検索...">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                             <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                        </div>
+                        <input type="text" id="search-input" class="w-full p-2 pl-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="献立名やタグで検索...">
+                    </div>
                 </div>
                 <div id="menu-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <!-- Menu list will be rendered here -->
@@ -109,93 +136,93 @@
     </div>
 
     <!-- Edit Modal -->
-    <div id="edit-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="text-2xl font-bold text-slate-800 mb-4">献立を編集</h3>
+    <div id="edit-modal" class="modal-overlay hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="modal-content bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold text-slate-800 mb-6">献立を編集</h3>
             <input type="hidden" id="edit-id-input">
-            <div class="space-y-4">
-                <div>
-                    <label for="edit-menu-input" class="label-text">献立</label>
-                    <textarea id="edit-menu-input" rows="3" class="input-field"></textarea>
+            <div class="space-y-6">
+                 <div>
+                    <label for="edit-menu-input" class="block text-sm font-medium text-slate-700 mb-1">献立 <span class="text-red-500">*</span></label>
+                    <textarea id="edit-menu-input" rows="3" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
                 </div>
                 <div>
-                    <label for="edit-ingredients-input" class="label-text">材料</label>
-                    <textarea id="edit-ingredients-input" rows="5" class="input-field"></textarea>
+                    <label for="edit-ingredients-input" class="block text-sm font-medium text-slate-700 mb-1">材料</label>
+                    <textarea id="edit-ingredients-input" rows="5" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
                 </div>
                  <div>
-                    <label for="edit-memo-input" class="label-text">メモ</label>
-                    <textarea id="edit-memo-input" rows="3" class="input-field"></textarea>
+                    <label for="edit-memo-input" class="block text-sm font-medium text-slate-700 mb-1">メモ</label>
+                    <textarea id="edit-memo-input" rows="3" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"></textarea>
                 </div>
                 <div>
-                    <label for="edit-url-input" class="label-text">レシピURL</label>
-                    <input type="url" id="edit-url-input" class="input-field">
+                    <label for="edit-url-input" class="block text-sm font-medium text-slate-700 mb-1">レシピURL</label>
+                    <input type="url" id="edit-url-input" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
                 </div>
                 <div>
-                    <span class="label-text">タグ</span>
-                    <div id="edit-tags-container" class="flex flex-wrap gap-2 mt-2">
-                        <button class="tag-select-button" data-tag="和食">和食</button>
-                        <button class="tag-select-button" data-tag="中華">中華</button>
-                        <button class="tag-select-button" data-tag="洋食">洋食</button>
-                        <button class="tag-select-button" data-tag="定番">定番</button>
-                        <button class="tag-select-button" data-tag="麺類">麺類</button>
-                        <button class="tag-select-button" data-tag="月1">月1</button>
+                    <span class="block text-sm font-medium text-slate-700 mb-2">タグ <span class="text-red-500">*</span></span>
+                    <div id="edit-tags-container" class="flex flex-wrap gap-2">
+                        <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="和食">和食</button>
+                        <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="中華">中華</button>
+                        <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="洋食">洋食</button>
+                        <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="定番">定番</button>
+                        <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="麺類">麺類</button>
+                        <button class="tag-select-button px-3 py-1.5 border-2 border-slate-200 text-slate-600 rounded-full font-semibold text-sm transition-colors duration-200 hover:border-slate-300" data-tag="月1">月1</button>
                     </div>
                 </div>
                 <div>
-                    <span class="label-text">献立タイプ</span>
-                     <div id="edit-meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                        <label class="radio-label"><input type="radio" name="editMealType" value="normal"> 通常</label>
-                        <label class="radio-label"><input type="radio" name="editMealType" value="bento"> お弁当OK</label>
-                        <label class="radio-label"><input type="radio" name="editMealType" value="weekend"> 週末向け</label>
+                    <span class="block text-sm font-medium text-slate-700 mb-2">献立タイプ</span>
+                     <div id="edit-meal-type-container" class="flex flex-wrap gap-x-4 gap-y-2">
+                        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer"><input type="radio" name="editMealType" value="normal" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"><span>通常</span></label>
+                        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer"><input type="radio" name="editMealType" value="bento" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"><span>お弁当OK</span></label>
+                        <label class="flex items-center space-x-2 text-slate-700 cursor-pointer"><input type="radio" name="editMealType" value="weekend" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"><span>週末向け</span></label>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 mt-6">
-                    <button id="cancel-edit-button" class="button-secondary">キャンセル</button>
-                    <button id="save-edit-button" class="button-primary">保存する</button>
+                    <button id="cancel-edit-button" class="py-2 px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">キャンセル</button>
+                    <button id="save-edit-button" class="py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition shadow-sm">保存する</button>
                 </div>
             </div>
         </div>
     </div>
     
     <!-- Memo Modal -->
-    <div id="memo-modal" class="modal-overlay hidden">
-        <div class="modal-content">
+    <div id="memo-modal" class="modal-overlay hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="modal-content bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-2xl font-bold text-slate-800">メモ</h3>
-                <button id="close-memo-button" class="icon-button text-slate-500 hover:text-red-600">&times;</button>
+                <h3 class="text-xl font-bold text-slate-800">メモ</h3>
+                <button id="close-memo-button" class="text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
             </div>
-            <div id="memo-content" class="bg-slate-50 p-4 rounded-md whitespace-pre-wrap text-slate-700"></div>
+            <div id="memo-content" class="bg-slate-50 p-4 rounded-md whitespace-pre-wrap text-slate-700 max-h-64 overflow-y-auto"></div>
         </div>
     </div>
 
-
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-4">
-                 <h3 class="text-2xl font-bold text-slate-800">設定</h3>
-                 <button id="close-settings-button" class="icon-button text-slate-500 hover:text-red-600">&times;</button>
+    <div id="settings-modal" class="modal-overlay hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="modal-content bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                 <h3 class="text-xl font-bold text-slate-800">設定</h3>
+                 <button id="close-settings-button" class="text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
             </div>
-            <div class="space-y-4">
+            <div class="space-y-6">
                 <div>
-                    <h4 class="font-bold text-slate-600 mb-2">データのエクスポート</h4>
-                    <p class="text-sm text-slate-500 mb-2">登録した献立データをファイルとして保存します。</p>
-                    <button id="export-button" class="button-secondary w-full">エクスポート</button>
+                    <h4 class="font-semibold text-slate-700 mb-2">データのエクスポート</h4>
+                    <p class="text-sm text-slate-500 mb-3">登録した献立データをJSONファイルとして保存します。</p>
+                    <button id="export-button" class="w-full text-center py-2 px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"><i class="fa-solid fa-download mr-2"></i>エクスポート</button>
                 </div>
                 <div>
-                    <h4 class="font-bold text-slate-600 mb-2">データのインポート</h4>
-                     <p class="text-sm text-slate-500 mb-2">ファイルから献立データを読み込みます。現在のデータは上書きされます。</p>
-                    <input type="file" id="import-file" class="hidden">
-                    <label for="import-file" class="button-secondary w-full text-center cursor-pointer">ファイルを選択</label>
+                    <h4 class="font-semibold text-slate-700 mb-2">データのインポート</h4>
+                     <p class="text-sm text-slate-500 mb-3">ファイルから献立データを読み込みます。<strong class="text-red-600">現在のデータは上書きされます。</strong></p>
+                    <input type="file" id="import-file" class="hidden" accept=".json">
+                    <label for="import-file" class="w-full text-center block py-2 px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer"><i class="fa-solid fa-upload mr-2"></i>ファイルを選択</label>
                 </div>
             </div>
         </div>
     </div>
     
     <!-- Message Box -->
-    <div id="message-box" class="message-box"></div>
+    <div id="message-box" class="fixed bottom-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg text-white font-semibold shadow-lg z-50"></div>
 
     <script src="script.js"></script>
+    
 </body>
 </html>
 
